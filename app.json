@@ -1,0 +1,57 @@
+{
+  "expo": {
+    "name": "Confluenxe",
+    "slug": "confluenx-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/app-icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-screen.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#000080"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.theproductdude.confluenxapp"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/app-icon.png",
+        "backgroundColor": "#000080"
+      },
+      "package": "com.theproductdude.confluenxapp",
+      "edgeToEdgeEnabled": true
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-video",
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-screen.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#000080"
+        }
+      ]
+    ],
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "b0879115-f6a8-49dc-b601-65224fd9b149"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/b0879115-f6a8-49dc-b601-65224fd9b149"
+    }
+  }
+}
