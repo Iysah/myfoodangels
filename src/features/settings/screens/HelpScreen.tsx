@@ -6,7 +6,7 @@ import Constants from 'expo-constants'
 import SettingsHeader from '../../shared/components/SettingsHeader'
 import { GLOBALSTYLES } from '../../../styles/globalStyles'
 import { spacing } from '../../../config/spacing'
-import { ChevronRight, Facebook, InfoIcon, Instagram, Linkedin, Twitter } from 'lucide-react-native'
+import { ChevronRight, Facebook, InfoIcon, Instagram, Linkedin, Twitter, Youtube } from 'lucide-react-native'
 import { HelpIcon, LegalIcon, PrivacyIcon } from '../../../../assets/icons/settings'
 
 const HelpScreen:FC<any> = ({ navigation }) => {
@@ -57,7 +57,7 @@ const HelpScreen:FC<any> = ({ navigation }) => {
 
               <TouchableOpacity style={[styles.row, styles.settingsItem]}>
                 <View style={styles.row}>
-                  <LegalIcon />
+                  <Youtube />
                   <Text>YouTube</Text>
                 </View>
 

@@ -77,7 +77,11 @@ const ChatListScreen = () => {
   const renderItem = ({ item }: {item: Chat}) => (
     <TouchableOpacity
       style={styles.itemContainer}
-      onPress={() => (navigation as any).navigate('ChatDetail', { chatId: item?._id })}
+      onPress={() => (navigation as any).navigate('ChatDetail', { 
+        chatId: item?.userId,
+        receiverName: item?.name,
+        receiverImage: item?.fileUrl
+      })}
       activeOpacity={0.7}
     >
       <View style={styles.avatarWrapper}>
@@ -122,7 +126,7 @@ const ChatListScreen = () => {
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={GLOBALSTYLES.title}>Messages</Text>
-          <SearchBar placeholder='Search' onPress={handleSearch} />
+          <SearchBar placeholder='Search Messages' onPress={handleSearch} />
         </View>
 
           {loading ? (
@@ -167,6 +171,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
     // backgroundColor: '#fff',
   },
   avatarWrapper: {

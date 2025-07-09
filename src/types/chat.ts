@@ -7,7 +7,24 @@ export interface Message {
   content: string;
   createdAt: string;
   updatedAt: string;
-  sender?: User;
+  sender?: {
+    id: string;
+    name: string;
+    email: string;
+    profileImg?: string;
+    role?: string;
+  };
+  receiver?: {
+    id: string;
+    name: string;
+    email: string;
+    profileImg?: string;
+    role?: string;
+  };
+  messageType?: 'text' | 'image' | 'video' | 'document';
+  fileUrl?: string;
+  fileName?: string;
+  fileType?: string;
 }
 
 export interface Conversation {

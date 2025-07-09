@@ -8,6 +8,7 @@ export class ScoutStore {
   searchResults: AthleteProfile[] = [];
   savedAthletes: AthleteProfile[] = [];
   singleAthlete: AthleteProfile | null = null;
+  athletePerformance = null;
   isLoading = false;
   refreshing = false;
   loadingMore = false;
@@ -85,6 +86,7 @@ export class ScoutStore {
       
       const response = await apiClient.get<any>(`/scout/athlete/${athleteId}`);
       this.singleAthlete = response?.data?.athlete.data;
+      this.athletePerformance = response?.data.performance
       console.log(response?.data)
     } catch (error: any) {
       this.error = error.response?.error?.message || 'Failed to fetch athlete details';
