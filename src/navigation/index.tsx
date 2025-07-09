@@ -52,10 +52,12 @@ import HelpScreen from '../features/settings/screens/HelpScreen';
 
 import { spacing } from '../config/spacing';
 import VerifyOtp from '../features/auth/screens/VerifyOtp';
-import { ScoutSearchScreen, PerformanceDetailsScreen, EditBioScreen, EventDetailsScreen, RegisterScreen, EditAboutScreen, AddAchievementScreen, AchievementsScreen, AddExperienceScreen, ExperiencesScreen, AddEducationScreen, EducationsScreen, AddStatisticsScreen, ProfileUpdateScreen } from '../features/athlete/screens';
+import { ScoutSearchScreen, PerformanceDetailsScreen, EventDetailsScreen, RegisterScreen, EditAboutScreen, AddAchievementScreen, AchievementsScreen, AddExperienceScreen, ExperiencesScreen, AddEducationScreen, EducationsScreen, AddStatisticsScreen, ProfileUpdateScreen } from '../features/athlete/screens';
 
 import LookingForScreen from '../features/scout/screens/LookingForScreen';
 import SportsScreen from '../features/scout/screens/SportsScreen';
+import PostDetails from '../features/scout/screens/PostDetails';
+import EditBioScreen from '../features/shared/screens/EditBioScreen';
 
 
 const Stack = createNativeStackNavigator();
@@ -311,6 +313,7 @@ const Navigation = observer(() => {
             <Stack.Screen name='TalentDetails' component={TalentDetailsScreen} options={{ animation: 'simple_push' }} />
             <Stack.Screen name='LookingFor' component={LookingForScreen} options={{ animation: 'slide_from_bottom'}}/>
             <Stack.Screen name='Sports' component={SportsScreen} options={{ animation: 'slide_from_bottom'}} />
+            <Stack.Screen name='PostDetails' component={PostDetails} options={{ animation: 'simple_push' }} />
 
 
             {/* General */}

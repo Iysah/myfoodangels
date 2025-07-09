@@ -5,7 +5,7 @@ import RegisterScreen from "./RegisterScreen";
 import VideosScreen from "./VideosScreen";
 import PerformanceDetailsScreen from "./PerfomanceDetailsScreen";
 import EventDetailsScreen from "./EventDetailsScreen";
-import EditBioScreen from "./EditBioScreen";
+// import EditBioScreen from "../../shared/screens/EditBioScreen";
 import ScoutSearchScreen from "./ScoutSearchScreen";
 import EditAboutScreen from "./EditAboutScreen";
 import AddAchievementScreen from "./AddAchievementScreen";
@@ -26,7 +26,7 @@ export {
     VideosScreen,
     PerformanceDetailsScreen,
     EventDetailsScreen,
-    EditBioScreen,
+    // EditBioScreen,
     ScoutSearchScreen,
     EditAboutScreen,
     AddAchievementScreen,

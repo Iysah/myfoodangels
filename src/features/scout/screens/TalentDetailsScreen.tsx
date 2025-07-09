@@ -6,7 +6,7 @@ import { theme } from '../../../config/theme'
 import { ArrowLeft, Award, Briefcase, GraduationCap, MapPin } from 'lucide-react-native'
 import { typography } from '../../../config/typography'
 import { spacing } from '../../../config/spacing'
-import { featuredAthletes } from '../../../data/atheletes'
+import { useVideoPlayer, VideoView } from 'expo-video'
 import Constants from 'expo-constants'
 import { GLOBALSTYLES } from '../../../styles/globalStyles'
 import { store } from '../../../store/root'
@@ -14,6 +14,17 @@ import { observer } from 'mobx-react-lite'
 import { formatDate } from '../../../utils/dateFormat'
 // import Video from 'react-native-video'
 
+interface PerformanceItem {
+    _id: string;
+    athlete: string;
+    description: string;
+    visibility: string;
+    image?: string[];
+    tag?: string;
+    updatedAt: string;
+    createdAt: string;
+    __v: number;
+}
 
 interface subParams {
     label: string;
@@ -30,7 +41,9 @@ const TalentDetailsScreen:FC<any> = observer(({ navigation }) => {
       }, [athleteId]);
 
     const item = scout.singleAthlete;
+    const performance = scout.athletePerformance as PerformanceItem[] | null;
     // console.log('Athlete Details', item)
+    // console.log('Performance', performance)
 
     if (scout.isLoading) {
         return (
@@ -52,6 +65,39 @@ const TalentDetailsScreen:FC<any> = observer(({ navigation }) => {
         )
       }
 
+    const PerformanceCard = ({ item }: { item: PerformanceItem }) => {
+        const mediaUrl = item.image?.[0];
+        const isVideo = typeof mediaUrl === 'string' && mediaUrl.endsWith('.mp4');
+        const player = useVideoPlayer({
+            uri: isVideo ? mediaUrl : undefined
+        });
+        
+        return (
+            <TouchableOpacity 
+                style={styles.videoCard}
+                onPress={() => navigation.navigate('PostDetails', { athleteId: item._id })}
+            >
+                {isVideo ? (
+                    <VideoView 
+                        player={player}
+                        style={styles.videoThumb}
+                    />
+                ) : (
+                    <Image 
+                        source={{ uri: mediaUrl }} 
+                        style={styles.videoThumb}
+                        resizeMode="cover"
+                    />
+                )}
+                <Text style={styles.videoTitle} numberOfLines={2}>
+                    {item.description || 'Performance'}
+                </Text>
+                <Text style={styles.videoDate}>
+                    {formatDate(item.createdAt)}
+                </Text>
+            </TouchableOpacity>
+        );
+    };
 
   return (
     <SafeAreaProvider style={{ backgroundColor: theme.colors.background, position: 'relative', paddingTop: Constants.statusBarHeight }}>
@@ -103,15 +149,13 @@ const TalentDetailsScreen:FC<any> = observer(({ navigation }) => {
 
                 {/* Videos */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Videos</Text>
+                    <Text style={styles.sectionTitle}>Performance</Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    {/* {item?.videos.map(video => (
-                        <View key={video.id} style={styles.videoCard}>
-                        <Video source={{uri: video.thumbnail}} style={styles.videoThumb}   controls resizeMode="cover" repeat paused={true} />
-                        <Text style={styles.videoTitle}>{video.title}</Text>
-                        <Text style={styles.videoDate}>{video.date}</Text>
-                        </View>
-                    ))} */}
+                    {performance?.map((item, index) => {
+                        return (
+                            <PerformanceCard key={item._id} item={item} />
+                        );
+                    })}
                     </ScrollView>
                 </View>
 
@@ -209,7 +253,8 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-start',
         alignItems: 'center',
         flexDirection: 'row',
-        gap: spacing.md
+        gap: spacing.md,
+        paddingTop: spacing.md
     },
     title: {
         fontSize: typography.fontSize.lg,
@@ -293,7 +338,11 @@ const styles = StyleSheet.create({
         color: '#444', fontSize: 14 
     },
     videoCard: { 
-        width: 160, marginRight: 12
+        width: 200, 
+        marginRight: 12,
+        // borderWidth: 1,
+        // borderColor: '#888',
+        // borderRadius: 8
      },
     videoThumb: { width: '100%', height: 90, borderRadius: 8, backgroundColor: '#ddd' },
     videoTitle: { fontWeight: 'bold', fontSize: 13, marginTop: 6 },
@@ -344,4 +393,14 @@ const styles = StyleSheet.create({
         fontSize: 12, 
      },
     achievementDesc: { color: '#444', fontSize: 13 },
+    videoTag: {
+        backgroundColor: '#eee',
+        color: '#333',
+        borderRadius: 12,
+        paddingHorizontal: 10,
+        paddingVertical: 2,
+        fontSize: 12,
+        marginTop: 4,
+        alignSelf: 'flex-start'
+    },
 })

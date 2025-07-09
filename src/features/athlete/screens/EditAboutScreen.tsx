@@ -31,6 +31,7 @@ const EditAboutScreen:FC<any> = observer(({ navigation }) => {
         <TextInput
             style={[styles.textArea, { textAlignVertical: 'top'}]}
             placeholder="Description"
+            placeholderTextColor={'#000'}
             value={about}
             onChangeText={setAbout}
             multiline

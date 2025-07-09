@@ -8,7 +8,7 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-screen.png",
+      "image": "./assets/app-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#000080"
     },
@@ -28,7 +28,13 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-video",
+      [
+        "expo-video",
+        {
+          "supportsBackgroundPlayback": true,
+          "supportsPictureInPicture": true
+        }
+      ],
       "expo-font",
       [
         "expo-splash-screen",
@@ -36,6 +42,13 @@
           "image": "./assets/splash-screen.png",
           "resizeMode": "contain",
           "backgroundColor": "#000080"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let you share them in chat.",
+          "cameraPermission": "The app accesses your camera to let you take photos for chat."
         }
       ]
     ],

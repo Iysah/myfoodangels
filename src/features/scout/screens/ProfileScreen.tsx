@@ -16,7 +16,7 @@ const ProfileScreen:FC<any> = observer(({ navigation }) => {
   const { userData } = store.auth;
 
   return (
-    <SafeAreaProvider style={{ backgroundColor: theme.colors.background, position: 'relative',  }}>
+    <SafeAreaProvider style={{ backgroundColor: theme.colors.background, position: 'relative', paddingTop: Constants.statusBarHeight }}>
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         <View style={GLOBALSTYLES.header}>
           <Text style={GLOBALSTYLES.title}>Profile</Text>
@@ -95,7 +95,7 @@ const ProfileScreen:FC<any> = observer(({ navigation }) => {
 
             <View style={styles.tagRow}>
               <View style={styles.lookingTag}><Text style={styles.lookingTagText}>Striker</Text></View>
-              <View style={styles.lookingTag}><Text style={styles.lookingTagText}>defender</Text></View>
+              <View style={styles.lookingTag}><Text style={styles.lookingTagText}>Defender</Text></View>
             </View>
             <View style={styles.tagRow}>
               <View style={styles.lookingTag}><Text style={styles.lookingTagText}>Goal Keeper</Text></View>
@@ -178,6 +178,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
 
     marginBottom: spacing.md,
+    paddingHorizontal: spacing.sm,
   },
   profileInfoText: {
     fontSize: 15,
@@ -239,5 +240,6 @@ const styles = StyleSheet.create({
   lookingTagText: {
     color: '#222',
     fontSize: typography.fontSize.sm,
+    textTransform: 'capitalize'
   },
 })

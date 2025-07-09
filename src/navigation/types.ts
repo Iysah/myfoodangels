@@ -19,7 +19,7 @@ export type RootStackParamList = {
   SearchTalent: undefined;
   TalentDetails: { talentId: string };
   Chats: undefined;
-  ChatDetail: { chatId: string };
+  ChatDetail: { chatId: string; receiverName?: string; receiverImage?: string };
   EventDetails: { eventId: string };
   Register: undefined;
   Notifications: undefined;

@@ -14,15 +14,18 @@ import { getFirstName } from '../../../utils/getFirtsName';
 import { GLOBALSTYLES } from '../../../styles/globalStyles';
 import { apiClient } from '../../../services/apiClient';
 import AthleteCard from '../components/AthleteCard';
+import AthletePost from '../components/AthletePost';
 
 interface Athlete {
   _id: string;
-  name: string;
-  about: string;
-  position: string;
-  skill: string;
-  location: { city: string, country: string },
-  profileImg?: string;
+  athlete: {
+    name?: string;
+    profileImg?: string;
+  },
+  visibility: string;
+  description: string;
+  image?: string[];
+  tag?: string
 }
 
 
@@ -43,8 +46,8 @@ const HomeScreen:FC<any> = observer(({ navigation }) => {
         setLoading(true);
       }
 
-      const response = await apiClient.get<any>(`/scout/athletes?0&number=20`);
-      const newAthletes = response.data;
+      const response = await apiClient.get<any>(`/scout/athletes/activity?page=${pageNumber}&limit=40`);
+      const newAthletes = response.data.performances;
 
       // console.log(newAthletes)
 
@@ -74,27 +77,27 @@ const HomeScreen:FC<any> = observer(({ navigation }) => {
     fetchAthletes();
   }, []);
 
-  const handleAthletePress = useCallback((athleteId: string) => {
-    navigation.navigate('TalentDetails', { athleteId });
+  const handlePostPress = useCallback((athleteId: string) => {
+    navigation.navigate('PostDetails', { athleteId });
   }, [navigation]);
 
   const renderItem = useCallback(({ item }: { item: Athlete}) => {
     return (
       <View style={styles.cardContainer}>
-        <AthleteCard
-          fullName={item?.name}
-          location={{ city: item?.location?.city, 
-            country: item?.location?.country
-          }}
-          sport={item?.skill}
-          position={item?.position}
-          imageUrl={item?.profileImg}
-          description={item?.about}
-          onPress={() => handleAthletePress(item?._id)}
+        <AthletePost 
+         athlete={{
+          name: item?.athlete.name,
+          profileImg: item.athlete.profileImg
+         }}
+         visibility={item?.visibility} 
+         description={item?.description} 
+         image={item?.image ? (Array.isArray(item.image) ? item.image : [item.image]) : undefined} 
+         tag={item?.tag}
+         onPress={() => handlePostPress(item?._id)}
         />
       </View>
     )
-  }, [handleAthletePress]);
+  }, [handlePostPress]);
 
 
 
@@ -126,7 +129,7 @@ const HomeScreen:FC<any> = observer(({ navigation }) => {
   
   
   return ( 
-    <SafeAreaProvider style={{ backgroundColor: theme.colors.background, position: 'relative' }}>
+    <SafeAreaProvider style={{ backgroundColor: theme.colors.background, position: 'relative', paddingTop: Constants.statusBarHeight }}>
       <View style={styles.container}>
         <View style={styles.header}>
           <View style={styles.profileWrapper}>
@@ -173,7 +176,6 @@ const HomeScreen:FC<any> = observer(({ navigation }) => {
               />
             }
           />
-
         </View>
 
       </View>

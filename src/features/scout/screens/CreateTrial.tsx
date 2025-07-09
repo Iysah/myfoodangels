@@ -18,11 +18,11 @@ const CreateTrial = () => {
   const [title, setTitle] = useState('');
   const [eventType, setEventType] = useState('');
   const [organizer, setOrganizer] = useState('Smith XYZ');
-  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [startDate, setStartDate] = useState(null);
   const [startTime, setStartTime] = useState<Date | null>(null);
-  const [endDate, setEndDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState(null);
   const [endTime, setEndTime] = useState<Date | null>(null);
-  const [deadline, setDeadline] = useState<Date | null>(null);
+  const [deadline, setDeadline] = useState(null);
   const [location, setLocation] = useState('');
   const [ageGroup, setAgeGroup] = useState('u18');
   const [skillLevel, setSkillLevel] = useState('');
@@ -92,22 +92,16 @@ const CreateTrial = () => {
     const endDateTime = new Date(endDate);
     endDateTime.setHours(endTime.getHours(), endTime.getMinutes());
 
-    // Create event object
-    const eventData = {
-      title,
-      eventType,
-      organizer,
-      startDateTime,
-      endDateTime,
-      deadline,
-      location,
-      ageGroup,
-      skillLevel,
-      maxAttendance,
-    };
-
-    // TODO: Handle event creation
-    console.log('Event Data:', eventData);
+    const formData = new FormData();
+    formData.append('name', title)
+    formData.append('trialType', eventType)
+    formData.append('organizerName', organizer)
+    formData.append('trialDate', startDate)
+    formData.append('trialDate', endDate)
+    formData.append('registrationDeadline', deadline)
+    formData.append('location', location)
+    formData.append('eligility', ageGroup)
+    formData.append('skillLevel', skillLevel)
   }
 
   const pickImage = () => {
@@ -127,7 +121,7 @@ const CreateTrial = () => {
           keyboardShouldPersistTaps="handled"
         >
           <View style={GLOBALSTYLES.wrapper}>
-            <Text style={GLOBALSTYLES.title}>Create Trial & Event</Text>
+            <Text style={GLOBALSTYLES.title}>Create Event</Text>
 
             {/* Event Details */}
             <Text style={styles.sectionTitle}>Event Details</Text>
