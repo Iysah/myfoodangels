@@ -1,30 +1,32 @@
 import { User } from './user';
 
+export interface MessageUser {
+  _id: string;
+  name: string;
+  email: string;
+  profileImg?: string;
+  position?: string;
+  title?: string;
+  about?: string;
+  location?: {
+    country?: string;
+    city?: string;
+    _id?: string;
+  };
+  // Add other fields as needed (statistic, achievement, etc.)
+}
+
 export interface Message {
-  id: string;
-  conversationId: string;
-  senderId: string;
+  id: string; // maps to _id
+  sender: MessageUser;
+  receiver: MessageUser;
   content: string;
-  createdAt: string;
-  updatedAt: string;
-  sender?: {
-    id: string;
-    name: string;
-    email: string;
-    profileImg?: string;
-    role?: string;
-  };
-  receiver?: {
-    id: string;
-    name: string;
-    email: string;
-    profileImg?: string;
-    role?: string;
-  };
-  messageType?: 'text' | 'image' | 'video' | 'document';
   fileUrl?: string;
   fileName?: string;
   fileType?: string;
+  messageType?: 'text' | 'image' | 'video' | 'document';
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Conversation {

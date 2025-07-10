@@ -3,14 +3,14 @@ import Constants from 'expo-constants';
 const ENV = {
   dev: {
     apiUrl: 'https://vercel-push-1.onrender.com/api/v1',
-    socketUrl: 'wss://dev-socket.confluenx.com',
+    socketUrl: 'https://vercel-push-1.onrender.com',
     uploadUrl: 'https://dev-uploads.confluenx.com',
     googleMapsApiKey: 'YOUR_DEV_GOOGLE_MAPS_API_KEY',
     cloudinary: {
-      cloudName: 'your-cloud-name',
-      uploadPreset: 'your-upload-preset',
-      apiKey: 'your-api-key',
-      apiSecret: 'your-api-secret',
+      cloudName: 'dvjmfasif',
+      uploadPreset: 'sample-preset',
+      apiKey: '745932219132568',
+      apiSecret: 'NyckzpTlop_XJqV-x3--jngRM_0',
     },
   },
   staging: {

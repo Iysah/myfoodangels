@@ -40,8 +40,24 @@ const EditBioScreen:FC<any> = observer(({ navigation }) => {
     }
   }
 
-  const handleUpdateScoutBio = () => {
-
+  const handleUpdateScoutBio = async () => {
+    try {
+      setLoading(true);
+      await store.scout.updateProfileBio({ 
+        name, 
+        title, 
+        position, 
+        country, 
+        city 
+      });
+      setLoading(false);
+      navigation.goBack();
+    } catch (error) {
+      console.error('Update scout bio failed:', error);
+      Alert.alert('Error', 'Failed to update bio. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -155,9 +171,9 @@ const EditBioScreen:FC<any> = observer(({ navigation }) => {
           />
 
           <SolidButton 
-            title={loading ? 'Saving...' : 'Save'} 
+            title={store.scout.isLoading ? 'Saving...' : 'Save'} 
             onPress={handleUpdateScoutBio} 
-            isLoading={loading}
+            isLoading={store.scout.isLoading}
           />
         </ScrollView>
        ) 
@@ -171,6 +187,7 @@ export default EditBioScreen
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
     paddingBottom: 100
   },
   backBtn: {

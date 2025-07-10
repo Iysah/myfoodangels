@@ -21,6 +21,8 @@ class ApiClient {
     this.client.interceptors.request.use(
       (config) => {
         const token = store.auth.token;
+        console.log('API Request:', config.method?.toUpperCase(), config.url);
+        console.log('Auth token:', token ? 'Present' : 'Missing');
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
@@ -30,8 +32,14 @@ class ApiClient {
     );
 
     this.client.interceptors.response.use(
-      (response) => response,
+      (response) => {
+        console.log('API Response:', response.status, response.config.url);
+        console.log('Response data:', response.data);
+        return response;
+      },
       async (error) => {
+        console.error('API Error:', error.response?.status, error.config?.url);
+        console.error('Error data:', error.response?.data);
         if (error.response?.status === 401) {
           // Handle token expiration
           await store.auth.logout();

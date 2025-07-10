@@ -1,7 +1,9 @@
-import { store } from '../store/root';
+import { io, Socket } from 'socket.io-client';
 import env from '../config/env';
+import { store } from '../store/root';
 import { cloudinaryService } from './cloudinaryService';
 import { filePickerService, FileInfo } from './filePickerService';
+import { Message } from '../types/chat';
 
 interface MessageData {
   sender: string;
@@ -14,73 +16,71 @@ interface MessageData {
 }
 
 class SocketService {
-  private socket: WebSocket | null = null;
-  private isConnected = false;
-  private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
-  private reconnectDelay = 1000;
+  private socket: Socket | null = null;
 
   connect() {
-    if (this.socket && this.isConnected) {
+    if (this.socket) return;
+
+    const token = store.auth.token;
+    if (!token) {
+      console.error('No authentication token available');
       return;
     }
 
-    try {
-      this.socket = new WebSocket(env.socketUrl);
-      
-      this.socket.onopen = () => {
-        console.log('WebSocket connected');
-        this.isConnected = true;
-        this.reconnectAttempts = 0;
-      };
+    this.socket = io(env.socketUrl, {
+      transports: ['websocket'],
+      forceNew: true,
+      auth: {
+        token: token
+      }
+    });
 
-      this.socket.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          this.handleMessage(data);
-        } catch (error) {
-          console.error('Error parsing WebSocket message:', error);
-        }
-      };
+    this.socket.on('connect', () => {
+      console.log('Socket.IO connected');
+    });
 
-      this.socket.onclose = () => {
-        console.log('WebSocket disconnected');
-        this.isConnected = false;
-        this.handleReconnect();
-      };
+    this.socket.on('disconnect', () => {
+      console.log('Socket.IO disconnected');
+    });
 
-      this.socket.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        this.isConnected = false;
-      };
-    } catch (error) {
-      console.error('Failed to create WebSocket connection:', error);
-    }
-  }
+    this.socket.on('receive_message', (data: MessageData) => {
+      this.handleIncomingMessage(data);
+    });
 
-  private handleReconnect() {
-    if (this.reconnectAttempts < this.maxReconnectAttempts) {
-      this.reconnectAttempts++;
-      console.log(`Attempting to reconnect... (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
-      
-      setTimeout(() => {
-        this.connect();
-      }, this.reconnectDelay * this.reconnectAttempts);
-    } else {
-      console.error('Max reconnection attempts reached');
-    }
-  }
-
-  private handleMessage(data: any) {
-    console.log('Received message:', data);
-    
-    if (data.event === 'bad-request') {
+    this.socket.on('bad-request', (data: any) => {
       console.error('Bad request error:', data.message);
-      // Handle bad request error
-    } else if (data.event === 'receiver_message') {
-      // Handle incoming message
-      this.handleIncomingMessage(data.data);
+      // You might want to show this error to the user
+    });
+
+    this.socket.on('connect_error', (error: any) => {
+      console.error('Socket connection error:', error);
+    });
+
+    this.socket.on('error', (error: any) => {
+      console.error('Socket error:', error);
+    });
+  }
+
+  sendMessage(messageData: MessageData) {
+    if (!this.socket || !this.socket.connected) {
+      console.error('Socket.IO not connected');
+      return false;
     }
+    
+    console.log('Sending message:', messageData);
+    this.socket.emit('send_message', messageData);
+    return true;
+  }
+
+  disconnect() {
+    if (this.socket) {
+      this.socket.disconnect();
+      this.socket = null;
+    }
+  }
+
+  isSocketConnected() {
+    return this.socket?.connected ?? false;
   }
 
   private handleIncomingMessage(messageData: MessageData) {
@@ -98,7 +98,7 @@ class SocketService {
       fileType: messageData.fileType,
       sender: {
         id: messageData.sender,
-        name: '', // Will be populated from user data if available
+        name: '',
         email: '',
         profileImg: '',
         role: '',
@@ -111,9 +111,7 @@ class SocketService {
         role: '',
       }
     };
-
-    // Update the chat store with the new message
-    store.chat.addMessage(newMessage);
+    store.chat.addMessage(newMessage as unknown as Message);
   }
 
   // Method to handle file uploads
@@ -177,36 +175,6 @@ class SocketService {
       console.error('Pick and upload error:', error);
       throw error;
     }
-  }
-
-  sendMessage(messageData: MessageData) {
-    if (!this.socket || !this.isConnected) {
-      console.error('WebSocket not connected');
-      return false;
-    }
-
-    try {
-      this.socket.send(JSON.stringify({
-        event: 'send_message',
-        data: messageData
-      }));
-      return true;
-    } catch (error) {
-      console.error('Error sending message:', error);
-      return false;
-    }
-  }
-
-  disconnect() {
-    if (this.socket) {
-      this.socket.close();
-      this.socket = null;
-      this.isConnected = false;
-    }
-  }
-
-  isSocketConnected() {
-    return this.isConnected;
   }
 }
 

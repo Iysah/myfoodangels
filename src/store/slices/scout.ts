@@ -24,9 +24,14 @@ export class ScoutStore {
       this.isLoading = true;
       this.error = null;
       
-      const response = await apiClient.get<ScoutProfile>('/scout/profile');
-      this.profile = response;
+      console.log('Fetching scout profile...');
+      const response = await apiClient.get<{ data: ScoutProfile }>('/scout/profile');
+      console.log('Scout profile response:', response);
+      console.log('Response data:', response.data);
+      this.profile = response.data;
+      console.log('Profile set to:', this.profile);
     } catch (error: any) {
+      console.error('Error fetching scout profile:', error);
       this.error = error.message;
       throw error;
     } finally {
@@ -39,8 +44,8 @@ export class ScoutStore {
       this.isLoading = true;
       this.error = null;
       
-      const response = await apiClient.put<ScoutProfile>('/scout/profile', data);
-      this.profile = response;
+      const response = await apiClient.put<{ data: ScoutProfile; code: number; status: boolean }>('/scout/profile', data);
+      this.profile = response.data;
     } catch (error: any) {
       this.error = error.message;
       throw error;
@@ -134,6 +139,62 @@ export class ScoutStore {
       
       await apiClient.delete(`/scout/saved-athletes/${athleteId}`);
       await this.fetchSavedAthletes();
+    } catch (error: any) {
+      this.error = error.message;
+      throw error;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  async updateProfileBio(data: {
+    name: string;
+    title: string;
+    position: string;
+    country: string;
+    city: string;
+  }) {
+    try {
+      this.isLoading = true;
+      this.error = null;
+      
+      const response = await apiClient.put<any>('/scout/profile-bio', data);
+      return response;
+    } catch (error: any) {
+      this.error = error.message;
+      throw error;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  async updateProfileSports(newSports: string[]) {
+    try {
+      this.isLoading = true;
+      this.error = null;
+      console.log('newSports', newSports);
+      const response = await apiClient.post<any>('/scout/profile/add-sports', {
+        newSports
+      });
+      console.log('response', response);
+      return response;
+    } catch (error: any) {
+      this.error = error.message;
+      throw error;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  async addLookFor(newLookFor: string[]) {
+    try {
+      this.isLoading = true;
+      this.error = null;
+      
+      const response = await apiClient.post<any>('/scout/profile/add-look-for', {
+        newLookFor
+      });
+      return response;
     } catch (error: any) {
       this.error = error.message;
       throw error;

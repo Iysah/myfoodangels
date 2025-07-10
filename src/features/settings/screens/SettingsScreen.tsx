@@ -69,9 +69,9 @@ const SettingsScreen:FC<any> = observer(() => {
                                     </View>
                                 </View>
 
-                                <TouchableOpacity onPress={() => navigation.navigate('ProfileSettings')}>
+                                {/* <TouchableOpacity onPress={() => navigation.navigate('ProfileSettings')}>
                                     <PenLine size={20} color={theme.colors.primary} />
-                                </TouchableOpacity>
+                                </TouchableOpacity> */}
                             </View>
                         </View>
                     )}

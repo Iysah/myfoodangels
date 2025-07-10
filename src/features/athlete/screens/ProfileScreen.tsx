@@ -38,6 +38,8 @@ const ProfileScreen:FC<any> = observer(({ navigation }) => {
   const [error, setError] = useState(null);
   const [hasMoreData, setHasMoreData] = useState(true);
   const { userData } = store.auth;
+
+  console.log('userData', userData);
   
   const fetchPerfomance = async (pageNumber: number = 1, shouldRefresh: boolean = false) => {
     try {

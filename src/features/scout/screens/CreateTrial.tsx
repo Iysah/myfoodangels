@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View, TextInput, TouchableOpacity, Platform, Image, Alert, KeyboardAvoidingView } from 'react-native'
+import React, { FC, useState } from 'react';
+import { ScrollView, StyleSheet, Text, View, TextInput, TouchableOpacity, Platform, Image, Alert, KeyboardAvoidingView, Switch } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { theme } from '../../../config/theme'
 import Constants from 'expo-constants'
@@ -11,10 +11,12 @@ import { ageGroups, eventTypes, skillLevels } from '../../../data/eventSetup';
 import SolidButton from '../../../components/button/solidButton';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format } from 'date-fns';
-import { typography } from '../../../config/typography';
+import * as ImagePicker from 'expo-image-picker';
+import { apiClient } from '../../../services/apiClient';
+import { observer } from 'mobx-react-lite';
 
 
-const CreateTrial = () => {
+const CreateTrial:FC<any> = observer(({ navigation }) => {
   const [title, setTitle] = useState('');
   const [eventType, setEventType] = useState('');
   const [organizer, setOrganizer] = useState('Smith XYZ');
@@ -26,7 +28,17 @@ const CreateTrial = () => {
   const [location, setLocation] = useState('');
   const [ageGroup, setAgeGroup] = useState('u18');
   const [skillLevel, setSkillLevel] = useState('');
-  const [image, setImage] = useState('')
+  const [specificRequirement, setSpecificRequirement] = useState('');
+  const [trialFees, setTrialFees] = useState('');
+  const [free, setFree] = useState(false);
+  const [refoundPolicy, setRefoundPolicy] = useState('');
+  const [description, setDescription] = useState('');
+  const [documentRequirement, setDocumentRequirement] = useState<string[]>([]);
+  const [newDocument, setNewDocument] = useState('');
+  const [equipmentNeeded, setEquipmentNeeded] = useState<string[]>([]);
+  const [newEquipment, setNewEquipment] = useState('');
+  const [image, setImage] = useState<any>(null); // for Expo ImagePicker result
+  const [loading, setLoading] = useState(false);
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showStartTimePicker, setShowStartTimePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
@@ -79,34 +91,98 @@ const CreateTrial = () => {
     return format(date, 'hh:mm a');
   };
 
-  const handleCreateEvent = () => {
-    if (!title || !eventType || !organizer || !startDate || !startTime || !endDate || !endTime || !deadline || !location || !ageGroup || !skillLevel || !maxAttendance) {
-      Alert.alert('Error', 'Please fill in all fields');
+  const pickImage = async () => {
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 1,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      setImage(result.assets[0]);
+    }
+  };
+
+  const handleCreateEvent = async () => {
+    // Validate all required fields
+    if (
+      !title || !eventType || !organizer || !startDate || !startTime || !endDate || !endTime ||
+      !deadline || !location || !ageGroup || !skillLevel || !trialFees || !refoundPolicy ||
+      !specificRequirement || !description || !image
+    ) {
+      Alert.alert('Error', 'Please fill in all fields and select an image');
       return;
     }
 
-    // Combine date and time for start and end
-    const startDateTime = new Date(startDate);
-    startDateTime.setHours(startTime.getHours(), startTime.getMinutes());
+    setLoading(true);
 
-    const endDateTime = new Date(endDate);
-    endDateTime.setHours(endTime.getHours(), endTime.getMinutes());
+    try {
+      // Combine date and time for start and end
+      const startDateTime = new Date(startDate);
+      startDateTime.setHours(startTime.getHours(), startTime.getMinutes());
 
-    const formData = new FormData();
-    formData.append('name', title)
-    formData.append('trialType', eventType)
-    formData.append('organizerName', organizer)
-    formData.append('trialDate', startDate)
-    formData.append('trialDate', endDate)
-    formData.append('registrationDeadline', deadline)
-    formData.append('location', location)
-    formData.append('eligility', ageGroup)
-    formData.append('skillLevel', skillLevel)
-  }
+      const endDateTime = new Date(endDate);
+      endDateTime.setHours(endTime.getHours(), endTime.getMinutes());
 
-  const pickImage = () => {
+      const formData = new FormData();
+      formData.append('name', title);
+      formData.append('trialType', eventType);
+      formData.append('organizerName', organizer);
+      formData.append('trialDate', startDateTime.toISOString());
+      formData.append('registrationDeadline', deadline.toISOString());
+      formData.append('location', location);
+      formData.append('eligibility', ageGroup);
+      formData.append('skillLevel', skillLevel);
+      formData.append('specificRequirement', specificRequirement);
+      formData.append('trialFees', trialFees);
+      formData.append('free', free ? 'true' : 'false');
+      formData.append('refoundPolicy', refoundPolicy);
+      formData.append('description', description);
+      formData.append('maximumAttendance', maxAttendance);
 
-  }
+      // Arrays
+      documentRequirement.forEach((doc, idx) => {
+        formData.append(`documentRequirement[${idx}]`, doc);
+      });
+      equipmentNeeded.forEach((eq, idx) => {
+        formData.append(`equipmentNeeded[${idx}]`, eq);
+      });
+
+      // Image
+      const getMimeType = (uri: string) => {
+        const extension = uri.split('.').pop();
+        if (extension === 'png') return 'image/png';
+        return 'image/jpeg';
+      };
+
+      formData.append('picture', {
+        uri: image.uri,
+        name: image.fileName || `event.${image.uri.split('.').pop() || 'jpg'}`,
+        type: getMimeType(image.uri),
+      });
+
+      // API call
+      const response = await apiClient.post('/scout/create-trial', formData);
+
+      Alert.alert('Success', 'Event created successfully!');
+      console.log('response', response);
+      navigation.navigate('EventCreationScreen');
+    } catch (error: any) {
+      if (error.response) {
+        console.log('Error response:', error.response);
+        Alert.alert('Error', error.response.data?.message || 'Failed to create event');
+      } else if (error.request) {
+        console.log('Error request:', error.request);
+        Alert.alert('Error', 'No response from server');
+      } else {
+        console.log('Error message:', error.message);
+        Alert.alert('Error', error.message || 'Failed to create event');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <SafeAreaProvider style={{ backgroundColor: theme.colors.background, position: 'relative', paddingTop: Constants.statusBarHeight }}>
@@ -200,7 +276,7 @@ const CreateTrial = () => {
               <MapPin size={18} color="#888" />
               <TextInput
                 style={[styles.input, { flex: 1, borderWidth: 0, marginBottom: 0, backgroundColor: 'transparent', color: '#000000', fontSize: 16, }]}
-                placeholder="Enter event location"
+                placeholder="Enter venue name/address"
                 placeholderTextColor="#888888" // Hardcode for testing
                 value={location}
                 onChangeText={setLocation}
@@ -234,19 +310,133 @@ const CreateTrial = () => {
               maxHeight={300}
               valueField="value"
               labelField='label'
-              placeholder='Under - 18'
+              placeholder='Beginner'
               data={skillLevels}
               value={skillLevel}
               onChange={(item) => {setSkillLevel(item.value)}}
             />
 
+
+            {/* Specific Requirement */}
+            <Text style={styles.label}>Specific Requirement</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter specific requirement"
+              value={specificRequirement}
+              onChangeText={setSpecificRequirement}
+            />
+
             <View style={styles.divider} />
 
+            {/* Trial Fees */}
+            <Text style={styles.sectionTitle}>Trial Fees</Text>
+
+            {/* Free */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <Text style={styles.label}>Free Event?</Text>
+              <Switch value={free} onValueChange={setFree} trackColor={{ true: '#E9E9F9', false: theme.colors.text.secondary }} thumbColor={theme.colors.primary} />
+            </View>
+
+            <Text style={styles.label}>Fee (NGN)</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter trial fees"
+              placeholderTextColor={'gray'}
+              value={trialFees}
+              onChangeText={setTrialFees}
+              keyboardType="numeric"
+            />            
+
+            {/* Refund Policy */}
+            <Text style={styles.label}>Refund Policy</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter refund policy"
+              value={refoundPolicy}
+              onChangeText={setRefoundPolicy}
+            />
+
+            <View style={styles.divider} />
+
+            <Text style={styles.sectionTitle}>Requirements</Text>
+
+            {/* Document Requirements */}
+            <Text style={styles.label}>Document Requirements</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+              <TextInput
+                style={[styles.input, { flex: 1 }]}
+                placeholder="Add document"
+                value={newDocument}
+                onChangeText={setNewDocument}
+              />
+              <TouchableOpacity
+                style={{ marginLeft: 8, backgroundColor: '#00008B', padding: 8, borderRadius: 6 }}
+                onPress={() => {
+                  if (newDocument.trim()) {
+                    setDocumentRequirement([...documentRequirement, newDocument.trim()]);
+                    setNewDocument('');
+                  }
+                }}
+              >
+                <Text style={{ color: '#fff' }}>Add</Text>
+              </TouchableOpacity>
+            </View>
+            {documentRequirement.map((doc, idx) => (
+              <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                <Text style={{ flex: 1 }}>{doc}</Text>
+                <TouchableOpacity onPress={() => setDocumentRequirement(documentRequirement.filter((_, i) => i !== idx))}>
+                  <Text style={{ color: 'red' }}>Remove</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+
+            {/* Equipment Needed */}
+            <Text style={styles.label}>Equipment Needed</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+              <TextInput
+                style={[styles.input, { flex: 1 }]}
+                placeholder="Add equipment"
+                value={newEquipment}
+                onChangeText={setNewEquipment}
+              />
+              <TouchableOpacity
+                style={{ marginLeft: 8, backgroundColor: '#00008B', padding: 8, borderRadius: 6 }}
+                onPress={() => {
+                  if (newEquipment.trim()) {
+                    setEquipmentNeeded([...equipmentNeeded, newEquipment.trim()]);
+                    setNewEquipment('');
+                  }
+                }}
+              >
+                <Text style={{ color: '#fff' }}>Add</Text>
+              </TouchableOpacity>
+            </View>
+            {equipmentNeeded.map((eq, idx) => (
+              <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                <Text style={{ flex: 1 }}>{eq}</Text>
+                <TouchableOpacity onPress={() => setEquipmentNeeded(equipmentNeeded.filter((_, i) => i !== idx))}>
+                  <Text style={{ color: 'red' }}>Remove</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+
+            <View style={styles.divider} />
+
+            {/* Description */}
+            <Text style={styles.label}>Description</Text>
+            <TextInput
+              style={[styles.input, { minHeight: 60, backgroundColor: '#F2F2F2' }]}
+              placeholder="Descrie the event, requirements, and what athletes can expect"
+              placeholderTextColor={'gray'}
+              value={description}
+              onChangeText={setDescription}
+              multiline
+            />
             {/* Choose Movie Section */}
             <Text style={styles.label}>Upload Images or Videos (Optional)</Text>
             {image ? (
               <Image 
-                source={{ uri: image }} 
+                source={{ uri: image.uri }} 
                 style={styles.imagePreview} 
               />
             ) : (
@@ -262,7 +452,7 @@ const CreateTrial = () => {
             <View style={[styles.inputWithIcon, { borderRadius: 8, borderWidth: 1, borderColor: '#D1D1D1', minHeight: 40, paddingHorizontal: 12, }]}>
               <Users size={18} color="#888" />
               <TextInput
-                style={[styles.input, { flex: 1, borderWidth: 0, marginBottom: 0, backgroundColor: 'transparent', color: theme.colors.text.primary }]}
+                style={[styles.input, { flex: 1, borderWidth: 0, marginBottom: 0, color: theme.colors.text.primary }]}
                 placeholder="Enter maximum number of attendees"
                 placeholderTextColor="#888888"
                 value={maxAttendance}
@@ -270,7 +460,7 @@ const CreateTrial = () => {
               />
             </View>
 
-            <SolidButton title='Create Event' onPress={handleCreateEvent} />
+            <SolidButton title={loading ? 'Creating...' : 'Create Event'} onPress={handleCreateEvent} isLoading={loading} />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -316,7 +506,7 @@ const CreateTrial = () => {
       )}
     </SafeAreaProvider>
   )
-}
+})
 
 export default CreateTrial
 

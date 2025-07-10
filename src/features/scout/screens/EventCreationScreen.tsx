@@ -1,5 +1,5 @@
 import { FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
-import React, { FC, useCallback, useState } from 'react'
+import React, { FC, useCallback, useEffect, useState } from 'react'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { theme } from '../../../config/theme'
 import Constants from 'expo-constants'
@@ -31,6 +31,10 @@ const EventCreationScreen:FC<any> = ({ navigation }) => {
   
   const { userData } = store.auth;
 
+  useEffect(() => {
+    fetchActivities(1, false);
+  }, []);
+
   const fetchActivities = async (pageNumber: number = 1, shouldRefresh: boolean = true) => {
     try {
       if (shouldRefresh) {
@@ -39,8 +43,9 @@ const EventCreationScreen:FC<any> = ({ navigation }) => {
         setLoading(true);
       }
   
-      const response = await apiClient.get<any>(`/scout/trials?page=${pageNumber}&limit=10`);
+      const response = await apiClient.get<any>(`/scout/trials?page=${pageNumber}&limit=100`);
       const newEvents = response.data.trials;
+      console.log('newEvents', newEvents);
   
       // Check if we've reached the end of the data
       if (newEvents.length === 0) {
@@ -77,12 +82,13 @@ const EventCreationScreen:FC<any> = ({ navigation }) => {
   }, [navigation]);
 
   const trialItem = useCallback(({ item }: { item: Trial }) => {
+    console.log('trial id', item._id);
     return (
       <View style={styles.cardContainer}>
         <TrialCard
           title={item?.name}
           location={item?.location}
-          requests={item?.trialFees}
+          requests={0}
           date={item?.trialDate}
           tag={item?.trialType}
           onPress={() => handleEventPress(item._id)}
