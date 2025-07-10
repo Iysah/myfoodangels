@@ -1,10 +1,11 @@
 import React, { FC, useState } from 'react';
-import { View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { sportsData } from '../../../data/sports';
 import { Search, X } from 'lucide-react-native';
 import { spacing } from '../../../config/spacing';
 import { theme } from '../../../config/theme';
 import { typography } from '../../../config/typography';
+import { store } from '../../../store/root';
 
 const SportsScreen:FC<any> = ({ navigation }) => {
   const [search, setSearch] = useState('');
@@ -19,6 +20,22 @@ const SportsScreen:FC<any> = ({ navigation }) => {
       prev.includes(value) ? prev.filter(v => v !== value) : [...prev, value]
     );
   };
+
+  const handleAddSports = async () => {
+    if (selected.length === 0) {
+      Alert.alert('Error', 'Please select at least one sport.');
+      return;
+    }
+
+    try {
+      console.log('selected', selected);
+      await store.scout.updateProfileSports(selected);
+      navigation.goBack();
+    } catch (error) {
+      console.error('Add sports failed:', error);
+      Alert.alert('Error', 'Failed to add sports. Please try again.');
+    }
+  }
 
   return (
 
@@ -54,8 +71,14 @@ const SportsScreen:FC<any> = ({ navigation }) => {
           </TouchableOpacity>
         ))}
       </ScrollView>
-      <TouchableOpacity style={styles.doneBtn} onPress={() => navigation.goBack()}>
-        <Text style={styles.doneText}>Done</Text>
+      <TouchableOpacity 
+        style={[styles.doneBtn, store.scout.isLoading && styles.doneBtnDisabled]} 
+        onPress={handleAddSports}
+        disabled={store.scout.isLoading}
+      >
+        <Text style={styles.doneText}>
+          {store.scout.isLoading ? 'Adding Sports...' : 'Add Sports'}
+        </Text>
       </TouchableOpacity>
     </View>
   );
@@ -132,6 +155,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 24,
     marginBottom: 8,
+  },
+  doneBtnDisabled: {
+    backgroundColor: '#ccc',
   },
   doneText: {
     color: '#fff',

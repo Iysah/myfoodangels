@@ -14,6 +14,7 @@ import { GLOBALSTYLES } from '../../../styles/globalStyles';
 import EventList from '../components/EventList';
 import { apiClient } from '../../../services/apiClient';
 import EventCard from '../components/EventCard';
+import ProfileCompletion from '../../shared/components/ProfileCompletion';
 
 interface Event {
   _id: string;
@@ -41,6 +42,7 @@ const HomeScreen:FC<any> = observer(({ navigation }) => {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [hasMoreData, setHasMoreData] = useState(true);
+  const [showProfileCompletion, setShowProfileCompletion] = useState(false);
   const [searchFilters, setSearchFilters] = useState<SearchFilters>({
     searchType: 'scout',
     name: '',
@@ -199,6 +201,14 @@ const HomeScreen:FC<any> = observer(({ navigation }) => {
                 <View style={styles.wrapper}>
                   <SearchBar onPress={() => navigation.navigate('SearchTalent')} placeholder='Search for athletes, filter results'  />
                 </View>
+
+                {/* Profile completion status */}
+                {showProfileCompletion && (
+                  <ProfileCompletion 
+                    onClose={() => { setShowProfileCompletion(false) }} 
+                    onPress={() => navigation.navigate('ProfileScreen')} 
+                  />
+                )}
 
                 <View style={GLOBALSTYLES.divider} />
 

@@ -42,11 +42,29 @@ export interface AthleteProfile {
   videos?: Video[];
 }
 
-export interface ScoutProfile extends User {
-  organization?: string;
+export interface ScoutProfile {
+  _id: string;
+  email: string;
+  name: string;
+  accountType: string;
+  emailVerified: boolean;
+  pushNotification: boolean;
+  emailNotification: boolean;
+  soundVibration: boolean;
   position?: string;
-  location?: string;
-  bio?: string;
+  location?: {
+    country: string;
+    city: string;
+    _id: string;
+  };
+  profileImg?: string;
+  about?: string;
+  title?: string;
+  sports?: string[];
+  lookFor?: string[];
+  accountStatus: string;
+  updatedAt: string;
+  createdAt: string;
 }
 
 export interface AthleteStats {

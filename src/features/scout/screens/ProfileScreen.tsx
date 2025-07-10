@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View, Image, TouchableOpacity, ScrollView } from 'react-native'
-import React, { FC } from 'react'
+import React, { FC, useEffect } from 'react'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { theme } from '../../../config/theme'
 import Constants from 'expo-constants'
@@ -14,6 +14,25 @@ import { typography } from '../../../config/typography'
 
 const ProfileScreen:FC<any> = observer(({ navigation }) => {
   const { userData } = store.auth;
+  const { profile } = store.scout;
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        console.log('Loading profile...');
+        console.log('Auth token:', store.auth.token);
+        console.log('User role:', store.auth.role);
+        await store.scout.fetchProfile();
+      } catch (error) {
+        console.error('Failed to fetch profile:', error);
+      }
+    };
+
+    loadProfile();
+  }, []);
+
+  console.log('profile', profile);
+  console.log('userData', userData);
 
   return (
     <SafeAreaProvider style={{ backgroundColor: theme.colors.background, position: 'relative', paddingTop: Constants.statusBarHeight }}>
@@ -35,24 +54,28 @@ const ProfileScreen:FC<any> = observer(({ navigation }) => {
 
             <TouchableOpacity onPress={() => navigation.navigate('ProfileUpdate')} style={styles.profileImageWrapper}>
               <Image
-                source={{ uri: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=facearea&w=256&h=256&facepad=2&q=80' }}
+                source={{ 
+                  uri: profile?.profileImg || 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=facearea&w=256&h=256&facepad=2&q=80' 
+                }}
                 style={styles.profileImage}
               />
               <View style={styles.statusDot} />
             </TouchableOpacity>
-            <Text style={styles.profileName}>{userData?.fullName}</Text>
-            <Text style={styles.profileTeam}><BriefcaseBusiness size={16} color={theme.colors.text.primary} /> Super Eagles</Text>
-            <Text style={styles.profileRole}>Head Talent Scout</Text>
+            <Text style={styles.profileName}>{profile?.name || userData?.fullName}</Text>
+            <Text style={styles.profileTeam}><BriefcaseBusiness size={16} color={theme.colors.text.primary} /> {profile?.title || 'Scout'}</Text>
+            <Text style={styles.profileRole}>{profile?.position || 'Talent Scout'}</Text>
           </View>
 
           <View style={styles.profileInfoRow}>
             <MapPin size={18} color="#555" />
-            <Text style={styles.profileInfoText}>Lagos, Nigeria</Text>
+            <Text style={styles.profileInfoText}>
+              {profile?.location ? `${profile.location.city}, ${profile.location.country}` : 'Location not set'}
+            </Text>
           </View>
 
           <View style={styles.profileInfoRow}>
             <Mail size={16} color="#555" />
-            <Text style={styles.profileInfoText}>{userData?.email}</Text>
+            <Text style={styles.profileInfoText}>{profile?.email || userData?.email}</Text>
           </View>
 
           {/* About Section */}
@@ -65,7 +88,7 @@ const ProfileScreen:FC<any> = observer(({ navigation }) => {
               </TouchableOpacity>
             </View>
             <Text style={styles.sectionText}>
-              {userData?.about}
+              {profile?.about || 'No bio added yet'}
             </Text>
           </View>
 
@@ -79,7 +102,15 @@ const ProfileScreen:FC<any> = observer(({ navigation }) => {
               </TouchableOpacity>
             </View>
             <View style={styles.tagRow}>
-              <View style={styles.sportTag}><Text style={styles.sportTagText}>football</Text></View>
+              {profile?.sports && profile.sports.length > 0 ? (
+                profile.sports.map((sport, index) => (
+                  <View key={index} style={styles.sportTag}>
+                    <Text style={styles.sportTagText}>{sport}</Text>
+                  </View>
+                ))
+              ) : (
+                <Text style={styles.sectionText}>No sports added yet</Text>
+              )}
             </View>
           </View>
 
@@ -93,14 +124,17 @@ const ProfileScreen:FC<any> = observer(({ navigation }) => {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.tagRow}>
-              <View style={styles.lookingTag}><Text style={styles.lookingTagText}>Striker</Text></View>
-              <View style={styles.lookingTag}><Text style={styles.lookingTagText}>Defender</Text></View>
-            </View>
-            <View style={styles.tagRow}>
-              <View style={styles.lookingTag}><Text style={styles.lookingTagText}>Goal Keeper</Text></View>
-              <View style={styles.lookingTag}><Text style={styles.lookingTagText}>Mid-fielder</Text></View>
-            </View>
+            {profile?.lookFor && profile.lookFor.length > 0 ? (
+              <View style={styles.tagRow}>
+                {profile.lookFor.map((position, index) => (
+                  <View key={index} style={styles.lookingTag}>
+                    <Text style={styles.lookingTagText}>{position}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.sectionText}>No positions added yet</Text>
+            )}
           </View>
         </View>
       </ScrollView>

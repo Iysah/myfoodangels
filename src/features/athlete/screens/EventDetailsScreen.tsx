@@ -9,14 +9,21 @@ import { GLOBALSTYLES } from '../../../styles/globalStyles'
 import { spacing } from '../../../config/spacing'
 import { typography } from '../../../config/typography'
 import SolidButton from '../../../components/button/solidButton'
-import { formatDate, formatRelativeTime, formatTime } from '../../../utils/dateFormat'
-import { store } from '../../../store/root'
+import { formatDate } from '../../../utils/dateFormat'
+import { store } from '../../../store/root';
 import { observer } from 'mobx-react-lite'
 
 interface Event {
   _id: string;
+  maximumAttendance: number;
   trialDate: string;
-  // ... other event properties
+  trialFees: number;
+  free: boolean;
+  description: string;
+  documentRequirement: string[];
+  equipmentNeeded: string[];
+  organizerName: string;
+  file: string;
 }
 
 // Rename the functions to be more specific
@@ -54,13 +61,15 @@ const EventDetailsScreen: FC<any> = observer(({ navigation }) => {
     const route = useRoute()
     const { eventId } = route.params as { eventId: string }
     const { events } = store;
+
+    console.log('store.auth?.role', store.auth?.role);
   
     useEffect(() => {
-      events.fetchSingleEvent(eventId);
+      events.fetchSingleEvent(eventId, store.auth?.role || '');
     }, [eventId]);
 
     const event = events.currentEvent;
-    // console.log
+    console.log('event', event?.scout);
 
     if (events.loading) {
       return (
@@ -78,7 +87,7 @@ const EventDetailsScreen: FC<any> = observer(({ navigation }) => {
         <SafeAreaProvider style={{ backgroundColor: theme.colors.background, position: 'relative', paddingTop: Constants.statusBarHeight }}>
           <View style={styles.errorContainer}>
             <Text style={styles.errorText}>Event not found</Text>
-            <TouchableOpacity style={styles.retryButton} onPress={() => events.fetchSingleEvent(eventId)}>
+            <TouchableOpacity style={styles.retryButton} onPress={() => events.fetchSingleEvent(eventId, store.auth?.role || '')}>
               <Text style={styles.retryText}>Retry</Text>
             </TouchableOpacity>
           </View>
@@ -126,7 +135,7 @@ const EventDetailsScreen: FC<any> = observer(({ navigation }) => {
 
                         <View>
                             <Text style={styles.label}>Attendees</Text>
-                            <Text style={styles.value}>0/50 spots</Text>
+                            <Text style={styles.value}>{event?.maximumAttendance}spots</Text>
                         </View>
                     </View>
 
@@ -135,7 +144,7 @@ const EventDetailsScreen: FC<any> = observer(({ navigation }) => {
 
                         <View>
                             <Text style={styles.label}>Fee</Text>
-                            <Text style={styles.value}>{event?.free ? "Free" : `$${event?.trialFees}`}</Text>
+                            <Text style={styles.value}>{event?.free ? "Free" : `NGN${event?.trialFees}`}</Text>
                         </View>
                     </View>
 
@@ -188,7 +197,11 @@ const EventDetailsScreen: FC<any> = observer(({ navigation }) => {
                     </View>
 
                     {/* Contact Organizer Button */}
-                    <TouchableOpacity style={styles.contactBtn}>
+                    <TouchableOpacity style={styles.contactBtn} onPress={() => navigation.navigate('ChatDetail', { 
+                        chatId: event?.scout,
+                        receiverName: event?.organizerName,
+                        receiverImage: event?.file
+                    })}>
                         <MessageSquareText size={typography.fontSize.lg} color={theme.colors.primary} />
                         <Text style={styles.btnText}>Contact Organizer</Text>
                     </TouchableOpacity>

@@ -15,6 +15,7 @@ import { GLOBALSTYLES } from '../../../styles/globalStyles';
 import { apiClient } from '../../../services/apiClient';
 import AthleteCard from '../components/AthleteCard';
 import AthletePost from '../components/AthletePost';
+import ProfileCompletion from '../../shared/components/ProfileCompletion';
 
 interface Athlete {
   _id: string;
@@ -35,6 +36,7 @@ const HomeScreen:FC<any> = observer(({ navigation }) => {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [hasMoreData, setHasMoreData] = useState(true);
+  const [showProfileCompletion, setShowProfileCompletion] = useState(false);
   const { userData } = store.auth;
   // console.log(store.auth.user)
 
@@ -133,7 +135,7 @@ const HomeScreen:FC<any> = observer(({ navigation }) => {
       <View style={styles.container}>
         <View style={styles.header}>
           <View style={styles.profileWrapper}>
-            <Image source={require('../../../../assets/profile-icon.png')} style={styles.profileImg} />
+            <Image source={userData?.profileImg ? { uri: userData?.profileImg } : require('../../../../assets/profile-icon.png')} style={styles.profileImg} />
             <View>
               <Text style={styles.welcomeText}>
                 Hi {getFirstName(userData?.fullName)}
@@ -160,6 +162,14 @@ const HomeScreen:FC<any> = observer(({ navigation }) => {
                 <View >
                   <SearchBar onPress={() => navigation.navigate('SearchTalent')} placeholder='Search for athletes, filter results'  />
                 </View>
+
+                {/* Profile completion status */}
+                {showProfileCompletion && (
+                  <ProfileCompletion 
+                    onClose={() => { setShowProfileCompletion(false) }} 
+                    onPress={() => navigation.navigate('ProfileScreen')} 
+                  />
+                )}
 
                 <Text style={styles.sectionTitle}>Featured Athletes</Text>
               </>

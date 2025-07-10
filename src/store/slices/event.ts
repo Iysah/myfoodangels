@@ -8,6 +8,7 @@ export interface Event {
   name: string;
   trialType: string;
   organizerName: string;
+  maximumAttendance: number;
   trialDate: string;
   registrationDeadline: string;
   location: string;
@@ -87,18 +88,28 @@ export class EventsStore {
     }
   }
 
-  async fetchSingleEvent(trialId: string) {
+  async fetchSingleEvent(trialId: string, role: string) {
     try {
       this.loading = true;
       this.error = null;
-      
-      const response = await apiClient.get<any>(`/athlete/trials/${trialId}`);
-      
+
+      console.log('role', role);
+
+      let response;
+      if (role?.toLowerCase() === 'scout') {
+        response = await apiClient.get<any>(`/scout/trial/single?trialId=${trialId}`);
+        console.log('response', response);
+      } else {
+        response = await apiClient.get<any>(`/athlete/trials/${trialId}`);
+      }
+
       runInAction(() => {
-        this.currentEvent = response.data;
+        this.currentEvent = role?.toLowerCase() === 'scout'
+          ? response.data.trial
+          : response.data;
         this.loading = false;
       });
-      console.log(response.data)
+      console.log(response.data);
     } catch (error: any) {
       runInAction(() => {
         this.error = error.message;

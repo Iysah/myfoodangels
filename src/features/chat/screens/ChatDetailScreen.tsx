@@ -16,7 +16,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GLOBALSTYLES } from '../../../styles/globalStyles';
 import { theme } from '../../../config/theme';
 import Constants from 'expo-constants';
-import { ArrowLeft, EllipsisVertical, Send, Paperclip, Image as ImageIcon, Video, FileText } from 'lucide-react-native';
+import { ArrowLeft, EllipsisVertical, Send, Paperclip, Image as ImageIcon, Video, FileText, MessagesSquare } from 'lucide-react-native';
 import { useRoute } from '@react-navigation/native';
 import { typography } from '../../../config/typography';
 import { spacing } from '../../../config/spacing';
@@ -24,6 +24,7 @@ import { observer } from 'mobx-react-lite';
 import { store } from '../../../store/root';
 import { socketService } from '../../../services/socketService';
 import { formatTime } from '../../../utils/dateFormat';
+import { Message } from '../../../types/chat';
 
 interface ChatDetailScreenProps {
   navigation: any;
@@ -42,7 +43,9 @@ const ChatDetailScreen: FC<ChatDetailScreenProps> = observer(({ navigation }) =>
   const [uploading, setUploading] = useState(false);
   const [showFileOptions, setShowFileOptions] = useState(false);
   const flatListRef = useRef<FlatList>(null);
+  // const { userData } = store.auth;
   const { userData } = store.auth;
+  // console.log('userData', userData?.userID);
 
   useEffect(() => {
     // Connect to socket when component mounts
@@ -68,6 +71,8 @@ const ChatDetailScreen: FC<ChatDetailScreenProps> = observer(({ navigation }) =>
       </SafeAreaProvider>
     );
   }
+
+  // console.log('userData', userData);
 
   const fetchChatHistory = async () => {
     try {
@@ -125,44 +130,25 @@ const ChatDetailScreen: FC<ChatDetailScreenProps> = observer(({ navigation }) =>
 
   const sendMessage = async (messageData: any) => {
     setSending(true);
-    
     try {
-      // Send via socket
+      // Send via socket only, matching the documented payload
       const sent = socketService.sendMessage(messageData);
-      
       if (sent) {
         // Add message to local state immediately for optimistic UI
         const tempMessage = {
           id: Date.now().toString(),
-          conversationId: chatId,
-          senderId: userData.userID,
+          sender: messageData.sender, // userID string
+          receiver: messageData.receiver, // userID string
           content: messageData.content,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          messageType: messageData.messageType,
           fileUrl: messageData.fileUrl,
           fileName: messageData.fileName,
           fileType: messageData.fileType,
-          sender: {
-            id: userData.userID,
-            name: userData.fullName,
-            email: userData.email,
-            profileImg: userData.profileImg,
-            role: userData.role,
-          },
-          receiver: {
-            id: chatId,
-            name: receiverName || 'Chat',
-            email: '',
-            profileImg: receiverImage,
-            role: '',
-          }
+          messageType: messageData.messageType,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         };
-        
-        store.chat.addMessage(tempMessage);
+        store.chat.addMessage(tempMessage as unknown as Message);
         setNewMessage('');
-        
-        // Scroll to bottom
         setTimeout(() => {
           flatListRef.current?.scrollToEnd({ animated: true });
         }, 100);
@@ -171,14 +157,18 @@ const ChatDetailScreen: FC<ChatDetailScreenProps> = observer(({ navigation }) =>
       }
     } catch (error) {
       console.error('Error sending message:', error);
-      Alert.alert('Error', 'Failed to send message');
+      Alert.alert('Error', 'Failed to send message. Please try again.');
     } finally {
       setSending(false);
     }
   };
 
   const renderMessage = ({ item }: { item: any }) => {
-    const isOwnMessage = item.senderId === userData.userID;
+    // Support both string and object sender types
+    const senderId = typeof item.sender === 'string' ? item.sender : item.sender?._id;
+    // console.log('senderId', senderId);
+    const isOwnMessage = senderId === userData.userID;
+    // console.log('Is own message:', isOwnMessage);
     
     const renderMessageContent = () => {
       if (item.messageType === 'image' && item.fileUrl) {
@@ -193,7 +183,7 @@ const ChatDetailScreen: FC<ChatDetailScreenProps> = observer(({ navigation }) =>
           <View style={styles.fileContainer}>
             <View style={styles.videoPlaceholder}>
               <Video size={24} color={isOwnMessage ? '#fff' : theme.colors.text.primary} />
-              <Text style={[styles.fileName, { color: isOwnMessage ? '#fff' : theme.colors.text.primary }]}>
+              <Text style={[styles.fileName, { color: isOwnMessage ? '#fff' : theme.colors.text.primary }]}> 
                 {item.fileName}
               </Text>
             </View>
@@ -204,7 +194,7 @@ const ChatDetailScreen: FC<ChatDetailScreenProps> = observer(({ navigation }) =>
           <View style={styles.fileContainer}>
             <View style={styles.documentPlaceholder}>
               <FileText size={24} color={isOwnMessage ? '#fff' : theme.colors.text.primary} />
-              <Text style={[styles.fileName, { color: isOwnMessage ? '#fff' : theme.colors.text.primary }]}>
+              <Text style={[styles.fileName, { color: isOwnMessage ? '#fff' : theme.colors.text.primary }]}> 
                 {item.fileName}
               </Text>
             </View>
@@ -228,7 +218,7 @@ const ChatDetailScreen: FC<ChatDetailScreenProps> = observer(({ navigation }) =>
         isOwnMessage ? styles.ownMessage : styles.otherMessage
       ]}>
         {/* Show sender name for other messages */}
-        {!isOwnMessage && item.sender?.name && (
+        {item.sender._id !== userData.userID && item.sender?.name && (
           <Text style={styles.senderName}>{item.sender.name}</Text>
         )}
         
@@ -349,16 +339,7 @@ const ChatDetailScreen: FC<ChatDetailScreenProps> = observer(({ navigation }) =>
     );
   };
 
-  if (store.chat.isLoading) {
-    return (
-      <SafeAreaProvider style={{ backgroundColor: theme.colors.background, paddingTop: Constants.statusBarHeight }}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={styles.loadingText}>Loading chat...</Text>
-        </View>
-      </SafeAreaProvider>
-    );
-  }
+
 
   return (
     <SafeAreaProvider style={{ backgroundColor: theme.colors.background, paddingTop: Constants.statusBarHeight }}>
@@ -368,17 +349,31 @@ const ChatDetailScreen: FC<ChatDetailScreenProps> = observer(({ navigation }) =>
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         {renderHeader()}
+
+        {store.chat.isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <Text style={styles.loadingText}>Loading chat...</Text>
+          </View>
+        ) : (
+          <FlatList
+            ref={flatListRef}
+            data={store.chat.messages}
+            keyExtractor={(item) => item.id}
+            renderItem={renderMessage}
+            style={styles.messagesList}
+            contentContainerStyle={styles.messagesContainer}
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <MessagesSquare size={24} color={theme.colors.text.primary} />
+                <Text style={styles.emptyText}>Say hello to start the conversation!</Text>
+              </View>
+            }
+            showsVerticalScrollIndicator={false}
+            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+          />
+        )}
         
-        <FlatList
-          ref={flatListRef}
-          data={store.chat.messages}
-          keyExtractor={(item) => item.id}
-          renderItem={renderMessage}
-          style={styles.messagesList}
-          contentContainerStyle={styles.messagesContainer}
-          showsVerticalScrollIndicator={false}
-          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-        />
         
         {renderFileOptions()}
         {renderInput()}
@@ -457,7 +452,7 @@ const styles = StyleSheet.create({
     maxWidth: '80%',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    borderRadius: 20,
+    borderRadius: 18,
   },
   ownBubble: {
     backgroundColor: theme.colors.primary,
@@ -579,5 +574,15 @@ const styles = StyleSheet.create({
     marginBottom: 2,
     marginLeft: 4,
     fontWeight: '500',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: typography.fontSize.sm,
+    color: theme.colors.text.secondary,
+    marginTop: spacing.sm,
   },
 });

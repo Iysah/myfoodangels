@@ -3,6 +3,7 @@ import { RootStore } from '../root';
 import { apiClient } from '../../services/apiClient';
 import { LoginResponse, UserData, Achievement, Education, Experience } from '../../types/auth';
 import { User } from '../../types/user';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface Performance {
   _id: string;
@@ -53,15 +54,17 @@ export class AuthStore implements AuthState {
       const result = response.data
       const statistic = result?.user?.statistic;
       console.log('data: ', result)
+      this.role = result.user.accountType;
+      console.log('role', this.role)
+      await AsyncStorage.setItem('userRole', this.role || '');
       
       this.token = result.token;
-      this.role = result.user.accountType;
       this.isAuthenticated = true;
       this.userData = {
         fullName: result?.user.name,
         email: result?.user.email,
         role: result?.user.accountType || '',
-        userID: result?.user.data?._id,
+        userID: result?.user?._id,
         skill: result?.user?.skill,
         position: result?.user?.position,
         pushNotification: result?.user?.pushNotification,
