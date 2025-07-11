@@ -1,4 +1,4 @@
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View, Alert } from 'react-native'
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View, Alert, KeyboardAvoidingView, Platform } from 'react-native'
 import React, { FC, useState } from 'react'
 import PageWrapper from '../../../components/wrapper'
 import { X } from 'lucide-react-native'
@@ -62,123 +62,129 @@ const EditBioScreen:FC<any> = observer(({ navigation }) => {
 
   return (
     <PageWrapper>
-      <TouchableOpacity onPress={() => navigation.goBack()}>
-          <X size={32} color={theme.colors.text.primary} style={styles.backBtn} />
-      </TouchableOpacity>
-      <Text style={styles.title}>Edit Bio</Text>
+      <KeyboardAvoidingView 
+        style={{ flex: 1 }} 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+            <X size={32} color={theme.colors.text.primary} style={styles.backBtn} />
+        </TouchableOpacity>
+        <Text style={styles.title}>Edit Bio</Text>
 
-      <Text style={styles.subTitle}>Write about yourself to easily discover opportunities, also Scout can reach you faster.</Text>
+        <Text style={styles.subTitle}>Write about yourself to easily discover opportunities, also Scout can reach you faster.</Text>
 
-      {store.auth.role?.toLowerCase() === "athlete" ? (
-        <ScrollView showsVerticalScrollIndicator={false} style={styles.container}>
-          <CustomInput
-            label="Full Name"
-            placeholder=""
-            value={name}
-            onChangeText={setName}
-            keyboardType="default"
-            autoCapitalize="none"
-          />
-  
-          <CustomInput
-            label="Skill"
-            placeholder=""
-            value={skill}
-            onChangeText={setSkill}
-            keyboardType="default"
-            autoCapitalize="none"
-          />
-  
-          <CustomInput
-            label="Position"
-            placeholder=""
-            value={position}
-            onChangeText={setPosition}
-            keyboardType="default"
-            autoCapitalize="none"
-          />
-  
-          <Text style={styles.sectionTitle}>Location</Text>
-  
-  
-          <CustomInput
-            label="Country/Region"
-            placeholder=""
-            value={country}
-            onChangeText={setCountry}
-            keyboardType="default"
-            autoCapitalize="none"
-          />
-  
-          <CustomInput
-            label="City"
-            placeholder=""
-            value={city}
-            onChangeText={setCity}
-            keyboardType="default"
-            autoCapitalize="none"
-          />
-  
-          <SolidButton title={store.athlete.isLoading ? 'Saving...' : 'Save'} onPress={handleUpdate} />
-        </ScrollView>
-       ) : store.auth.role?.toLowerCase() === "scout" ? (
-        <ScrollView showsVerticalScrollIndicator={false} style={styles.container}>
-          <CustomInput
-            label="Full Name"
-            placeholder=""
-            value={name}
-            onChangeText={setName}
-            keyboardType="default"
-            autoCapitalize="none"
-          />
+        {store.auth.role?.toLowerCase() === "athlete" ? (
+          <ScrollView showsVerticalScrollIndicator={false} style={styles.container}>
+            <CustomInput
+              label="Full Name"
+              placeholder=""
+              value={name}
+              onChangeText={setName}
+              keyboardType="default"
+              autoCapitalize="none"
+            />
+    
+            <CustomInput
+              label="Skill"
+              placeholder=""
+              value={skill}
+              onChangeText={setSkill}
+              keyboardType="default"
+              autoCapitalize="none"
+            />
+    
+            <CustomInput
+              label="Position"
+              placeholder=""
+              value={position}
+              onChangeText={setPosition}
+              keyboardType="default"
+              autoCapitalize="none"
+            />
+    
+            <Text style={styles.sectionTitle}>Location</Text>
+    
+    
+            <CustomInput
+              label="Country/Region"
+              placeholder=""
+              value={country}
+              onChangeText={setCountry}
+              keyboardType="default"
+              autoCapitalize="none"
+            />
+    
+            <CustomInput
+              label="City"
+              placeholder=""
+              value={city}
+              onChangeText={setCity}
+              keyboardType="default"
+              autoCapitalize="none"
+            />
+    
+            <SolidButton title={store.athlete.isLoading ? 'Saving...' : 'Save'} onPress={handleUpdate} />
+          </ScrollView>
+         ) : store.auth.role?.toLowerCase() === "scout" ? (
+          <View style={styles.container}>
+            <CustomInput
+              label="Full Name"
+              placeholder=""
+              value={name}
+              onChangeText={setName}
+              keyboardType="default"
+              autoCapitalize="none"
+            />
 
-          <CustomInput
-            label="Title"
-            placeholder=""
-            value={title}
-            onChangeText={setTitle}
-            keyboardType="default"
-            autoCapitalize="none"
-          />
+            <CustomInput
+              label="Title"
+              placeholder=""
+              value={title}
+              onChangeText={setTitle}
+              keyboardType="default"
+              autoCapitalize="none"
+            />
 
-          <CustomInput
-            label="Postion"
-            placeholder=""
-            value={position}
-            onChangeText={setPosition}
-            keyboardType="default"
-            autoCapitalize="none"
-          />
+            <CustomInput
+              label="Postion"
+              placeholder=""
+              value={position}
+              onChangeText={setPosition}
+              keyboardType="default"
+              autoCapitalize="none"
+            />
 
-          <Text style={styles.sectionTitle}>Location</Text>
-            
-          <CustomInput
-            label="Country/Region"
-            placeholder=""
-            value={country}
-            onChangeText={setCountry}
-            keyboardType="default"
-            autoCapitalize="none"
-          />
+            <Text style={styles.sectionTitle}>Location</Text>
+              
+            <CustomInput
+              label="Country/Region"
+              placeholder=""
+              value={country}
+              onChangeText={setCountry}
+              keyboardType="default"
+              autoCapitalize="none"
+            />
 
-          <CustomInput
-            label="City"
-            placeholder=""
-            value={city}
-            onChangeText={setCity}
-            keyboardType="default"
-            autoCapitalize="none"
-          />
+            <CustomInput
+              label="City"
+              placeholder=""
+              value={city}
+              onChangeText={setCity}
+              keyboardType="default"
+              autoCapitalize="none"
+            />
 
-          <SolidButton 
-            title={store.scout.isLoading ? 'Saving...' : 'Save'} 
-            onPress={handleUpdateScoutBio} 
-            isLoading={store.scout.isLoading}
-          />
-        </ScrollView>
-       ) 
-       : null
-      }
+            <SolidButton 
+              title={store.scout.isLoading ? 'Saving...' : 'Save'} 
+              onPress={handleUpdateScoutBio} 
+              isLoading={store.scout.isLoading}
+            />
+          </View>
+         ) 
+         : null
+        }
+      </KeyboardAvoidingView>
     </PageWrapper>
   )
 });

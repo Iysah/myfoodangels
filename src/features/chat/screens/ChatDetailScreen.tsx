@@ -488,7 +488,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    paddingBottom: spacing.lg,
+    paddingBottom: spacing.xl,
     backgroundColor: theme.colors.background,
     borderTopWidth: 1,
     borderTopColor: '#E0E0E0',
@@ -496,6 +496,7 @@ const styles = StyleSheet.create({
   attachButton: {
     padding: spacing.sm,
     marginRight: spacing.sm,
+    marginBottom: spacing.lg,
   },
   textInput: {
     flex: 1,
@@ -503,7 +504,9 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
+
     maxHeight: 100,
+    marginBottom: spacing.lg,
     fontSize: typography.fontSize.sm,
     color: theme.colors.text.primary,
   },
@@ -512,6 +515,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: spacing.sm,
     marginLeft: spacing.sm,
+    marginBottom: spacing.lg,
     justifyContent: 'center',
     alignItems: 'center',
     minWidth: 40,

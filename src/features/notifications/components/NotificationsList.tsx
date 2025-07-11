@@ -1,5 +1,5 @@
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native'
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import NotificationItem from './NotificationItem'
 import { store } from '../../../store/root'
 import { observer } from 'mobx-react-lite'
@@ -11,34 +11,58 @@ import EmptyIcon from '../../../../assets/icons/states/empty'
 
 const NotificationsList = observer(() => {
   const [page, setPage] = useState(1);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMoreData, setHasMoreData] = useState(true);
   const { notifications, loading, refreshing, loadingMore, error } = store.notifications;
 
   useEffect(() => {
     loadNotifications();
   }, []);
 
-  const loadNotifications = async (shouldRefresh = false) => {
+  const loadNotifications = useCallback(async (shouldRefresh = false) => {
     try {
       const pageToLoad = shouldRefresh ? 1 : page;
+      console.log('Loading notifications page:', pageToLoad, 'shouldRefresh:', shouldRefresh);
+      
       await store.notifications.fetchNotifications(pageToLoad, shouldRefresh);
+      
+      // Check if we have more data (assuming API returns empty array when no more data)
+      const currentNotifications = store.notifications.notifications;
+      if (currentNotifications.length === 0 || currentNotifications.length < pageToLoad * 10) {
+        setHasMoreData(false);
+      }
+      
       if (!shouldRefresh) {
         setPage(prev => prev + 1);
       }
     } catch (error) {
       console.error('Error loading notifications:', error);
     }
-  };
+  }, [page]);
 
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(() => {
     setPage(1);
+    setHasMoreData(true);
     loadNotifications(true);
-  };
+  }, [loadNotifications]);
 
-  const handleLoadMore = () => {
-    if (!loadingMore && !refreshing) {
-      loadNotifications();
+  const handleLoadMore = useCallback(async () => {
+    console.log('handleLoadMore called - hasMoreData:', hasMoreData, 'isLoadingMore:', isLoadingMore, 'loadingMore:', loadingMore, 'refreshing:', refreshing, 'loading:', loading);
+    
+    // Prevent multiple simultaneous calls
+    if (isLoadingMore || loadingMore || refreshing || loading || !hasMoreData) {
+      console.log('Preventing load more - conditions not met');
+      return;
     }
-  };
+    
+    console.log('Starting load more for page:', page);
+    setIsLoadingMore(true);
+    try {
+      await loadNotifications();
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [hasMoreData, isLoadingMore, loadingMore, refreshing, loading, page, loadNotifications]);
 
   const renderItem = ({ item }: { item: Notification }) => (
     <NotificationItem 
@@ -59,7 +83,7 @@ const NotificationsList = observer(() => {
   );
 
   const renderFooter = () => {
-    if (!loadingMore) return null;
+    if (!isLoadingMore && !loadingMore) return null;
     return (
       <View style={styles.footer}>
         <ActivityIndicator size="small" color={theme.colors.primary} />
@@ -91,7 +115,11 @@ const NotificationsList = observer(() => {
       contentContainerStyle={styles.container}
       showsVerticalScrollIndicator={false}
       onEndReached={handleLoadMore}
-      onEndReachedThreshold={0.5}
+      onEndReachedThreshold={0.1}
+      initialNumToRender={10}
+      maxToRenderPerBatch={10}
+      windowSize={10}
+      removeClippedSubviews={true}
       ListEmptyComponent={renderEmpty}
       ListFooterComponent={renderFooter}
       refreshControl={

@@ -7,10 +7,11 @@ import { ArrowLeft } from 'lucide-react-native'
 import { spacing } from '../../../config/spacing'
 import { typography } from '../../../config/typography'
 import NotificationsList from '../components/NotificationsList'
+import PageWrapper from '../../../components/wrapper'
 
 const NotificationsScreen:FC<any> = ({ navigation }) => {
   return (
-    <SafeAreaProvider style={styles.wrapper}>
+    <PageWrapper>
       <View style={styles.container}>
         <View  style={styles.row} >
           <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -21,7 +22,7 @@ const NotificationsScreen:FC<any> = ({ navigation }) => {
 
         <NotificationsList />
       </View>
-    </SafeAreaProvider>
+    </PageWrapper>
   )
 }
 
@@ -35,7 +36,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    paddingHorizontal: spacing.md
+    // paddingHorizontal: spacing.md
   },
   row: {
     flexDirection: 'row',

@@ -116,6 +116,6 @@ const styles = StyleSheet.create({
         color: '#fff', 
         // marginHorizontal: theme.spacing.xl,
         textAlign: 'center',
-        // marginBottom: spacing.lg
+        marginBottom: spacing.lg
     },
 })
