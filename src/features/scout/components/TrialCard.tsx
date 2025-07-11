@@ -66,6 +66,7 @@ const styles = StyleSheet.create({
     title: {
         fontSize: typography.fontSize.lg,
         fontWeight: '600',
+        textTransform: 'capitalize'
     },
     tagWrapper: {
         backgroundColor: theme.colors.lightBg,
@@ -75,6 +76,7 @@ const styles = StyleSheet.create({
     },
     tag: {
         fontSize: typography.fontSize.sm,
+        
     },
     textWrapper: {
         justifyContent: 'space-between',
@@ -86,9 +88,13 @@ const styles = StyleSheet.create({
         marginBottom: spacing.md
     },
     requestWrapper: {
-        backgroundColor: theme.colors.text.primary,
+        backgroundColor: theme.colors.primary,
         padding: spacing.xs,
-        borderRadius: theme.borderRadius.rounded
+        borderRadius: theme.borderRadius.rounded,
+        width: 25,
+        height: 25, 
+        alignItems: 'center',
+        justifyContent: 'center',
 
     },
     requestsCount: {

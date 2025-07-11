@@ -72,7 +72,7 @@ const styles = StyleSheet.create({
     },
     title: {
         fontSize: typography.fontSize.md,
-        fontWeight: '600',
+        fontWeight: '500',
         color: theme.colors.text.primary,
     },
     description: {

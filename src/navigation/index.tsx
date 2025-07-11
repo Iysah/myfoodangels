@@ -182,7 +182,7 @@ const ScoutTabs = () => (
       tabBarStyle: {
         height: Platform.select({
           ios: 90,
-          android: 70,
+          android: 75,
         }),
         paddingBottom: Platform.select({
           android: spacing.md,

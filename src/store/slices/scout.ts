@@ -158,7 +158,7 @@ export class ScoutStore {
       this.isLoading = true;
       this.error = null;
       
-      const response = await apiClient.put<any>('/scout/profile-bio', data);
+      const response = await apiClient.post<any>('/scout/profile-bio', data);
       return response;
     } catch (error: any) {
       this.error = error.message;

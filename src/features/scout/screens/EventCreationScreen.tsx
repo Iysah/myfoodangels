@@ -28,7 +28,8 @@ const EventCreationScreen:FC<any> = ({ navigation }) => {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [hasMoreData, setHasMoreData] = useState(true);
-  
+  const [applicants, setApplicants] = useState<any[]>([]);
+
   const { userData } = store.auth;
 
   useEffect(() => {
@@ -45,6 +46,7 @@ const EventCreationScreen:FC<any> = ({ navigation }) => {
   
       const response = await apiClient.get<any>(`/scout/trials?page=${pageNumber}&limit=100`);
       const newEvents = response.data.trials;
+      const applicants = response.data.applicants;
       console.log('newEvents', newEvents);
   
       // Check if we've reached the end of the data
@@ -56,6 +58,7 @@ const EventCreationScreen:FC<any> = ({ navigation }) => {
       // Otherwise append to existing data
       if (shouldRefresh || pageNumber === 1) {
         setEvents(newEvents);
+        setApplicants(applicants);
         setPage(1);
       } else {
         setEvents(prevEvents => [...prevEvents, ...newEvents]);
@@ -88,7 +91,7 @@ const EventCreationScreen:FC<any> = ({ navigation }) => {
         <TrialCard
           title={item?.name}
           location={item?.location}
-          requests={0}
+          requests={applicants.length}
           date={item?.trialDate}
           tag={item?.trialType}
           onPress={() => handleEventPress(item._id)}
