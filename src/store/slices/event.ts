@@ -4,7 +4,11 @@ import { apiClient } from '../../services/apiClient';
 
 export interface Event {
   _id: string;
-  scout: string;
+  scout: {
+    _id: string;
+    name: string;
+    profileImg: string;
+  };
   name: string;
   trialType: string;
   organizerName: string;

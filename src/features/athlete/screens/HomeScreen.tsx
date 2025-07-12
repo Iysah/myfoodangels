@@ -1,5 +1,5 @@
 import React, { FC, memo, useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, RefreshControl, FlatList } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, RefreshControl, FlatList, ActivityIndicator } from 'react-native';
 import { observer } from 'mobx-react-lite';
 import { store } from '../../../store/root';
 import { theme } from '../../../config/theme';
@@ -36,6 +36,18 @@ interface SearchFilters {
   eligibility?: string;
 }
 
+const NotificationBadge = ({ count }: { count: number }) => {
+  if (count === 0) return null;
+  
+  return (
+    <View style={styles.badge}>
+      <Text style={styles.badgeText}>
+        {count > 99 ? '99+' : count.toString()}
+      </Text>
+    </View>
+  );
+};
+
 const HomeScreen:FC<any> = observer(({ navigation }) => {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(false);
@@ -52,6 +64,7 @@ const HomeScreen:FC<any> = observer(({ navigation }) => {
     eligibility: ''
   });
   const { userData } = store.auth;
+  const { unreadCount } = store.notifications;
 
   const handleSearch = async (searchText: string) => {
     try {
@@ -185,6 +198,7 @@ const HomeScreen:FC<any> = observer(({ navigation }) => {
 
           <TouchableOpacity style={GLOBALSTYLES.iconWrapper} onPress={() => navigation.navigate('Notifications')}>
             <Bell size={20} color={'#000'} />
+            <NotificationBadge count={unreadCount} />
           </TouchableOpacity>
         </View>
 
@@ -358,6 +372,23 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  badge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    backgroundColor: theme.colors.primary,
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
 });
 

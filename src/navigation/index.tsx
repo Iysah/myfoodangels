@@ -6,7 +6,7 @@ import { observer } from 'mobx-react-lite';
 import { store } from '../store/root';
 import { UserRole } from '../types/user';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { View, Platform } from 'react-native';
+import { View, Platform, Text, TouchableOpacity } from 'react-native';
 import { MessageSquareText, Plus } from 'lucide-react-native';
 
 // Onboarding Screens
@@ -58,6 +58,20 @@ import LookingForScreen from '../features/scout/screens/LookingForScreen';
 import SportsScreen from '../features/scout/screens/SportsScreen';
 import PostDetails from '../features/scout/screens/PostDetails';
 import EditBioScreen from '../features/shared/screens/EditBioScreen';
+import RequestsScreen from '../features/scout/screens/RequestsScreen';
+
+// API imports for unread messages
+import { fetchUnreadMessagesCount as fetchScoutUnreadCount } from '../features/scout/api';
+import { fetchUnreadMessagesCount as fetchAthleteUnreadCount } from '../features/athlete/services/api';
+
+// Types for unread messages response
+interface UnreadMessagesResponse {
+  data: {
+    totalUnseen: number;
+  };
+  code: number;
+  status: boolean;
+}
 
 
 const Stack = createNativeStackNavigator();
@@ -93,23 +107,221 @@ const AuthNavigator = () => {
   );
 };
 
+// Custom Tab Bar Component with Badge
+const CustomTabBar = ({ state, descriptors, navigation, userRole }: any) => {
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    const fetchUnreadCount = async () => {
+      try {
+        const apiFunction = userRole === 'scout' ? fetchScoutUnreadCount : fetchAthleteUnreadCount;
+        const response = await apiFunction() as UnreadMessagesResponse;
+        setUnreadCount(response.data.totalUnseen || 0);
+      } catch (error) {
+        console.error('Error fetching unread count:', error);
+      }
+    };
+
+    fetchUnreadCount();
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchUnreadCount, 30000);
+    return () => clearInterval(interval);
+  }, [userRole]);
+
+  return (
+    <View style={{
+      flexDirection: 'row',
+      height: Platform.select({
+        ios: userRole === 'scout' ? 90 : 80,
+        android: userRole === 'scout' ? 75 : 70,
+      }),
+      backgroundColor: '#fff',
+      borderTopWidth: 1,
+      borderTopColor: '#E1E1E1',
+      paddingBottom: Platform.select({
+        android: spacing.md,
+        ios: userRole === 'scout' ? spacing.lg : spacing.md
+      })
+    }}>
+      {state.routes.map((route: any, index: number) => {
+        const { options } = descriptors[route.key];
+        const label = options.tabBarLabel !== undefined ? options.tabBarLabel : options.title !== undefined ? options.title : route.name;
+
+        const isFocused = state.index === index;
+
+        const onPress = () => {
+          const event = navigation.emit({
+            type: 'tabPress',
+            target: route.key,
+            canPreventDefault: true,
+          });
+
+          if (!isFocused && !event.defaultPrevented) {
+            navigation.navigate(route.name);
+          }
+        };
+
+        const onLongPress = () => {
+          navigation.emit({
+            type: 'tabLongPress',
+            target: route.key,
+          });
+        };
+
+        // Special handling for Messages tab with badge
+        if (route.name === 'Messages') {
+          return (
+            <View key={route.key} style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityState={isFocused ? { selected: true } : {}}
+                accessibilityLabel={options.tabBarAccessibilityLabel}
+                testID={options.tabBarTestID}
+                onPress={onPress}
+                onLongPress={onLongPress}
+                style={{ alignItems: 'center' }}
+              >
+                <View style={{ position: 'relative' }}>
+                  <MessageSquareText 
+                    size={24} 
+                    color={isFocused ? theme.colors.primary : theme.colors.text.secondary} 
+                  />
+                  {unreadCount > 0 && (
+                    <View style={{
+                      position: 'absolute',
+                      top: -5,
+                      right: -8,
+                      backgroundColor:  theme.colors.primary,
+                      borderRadius: 10,
+                      minWidth: 20,
+                      height: 20,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderWidth: 2,
+                      borderColor: '#fff',
+                    }}>
+                      <Text style={{
+                        color: '#fff',
+                        fontSize: 10,
+                        fontWeight: 'bold',
+                      }}>
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={{
+                  color: isFocused ? theme.colors.primary : theme.colors.text.secondary,
+                  fontSize: 12,
+                  marginTop: 4,
+                }}>
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          );
+        }
+
+        // Special handling for CreateTrial tab (scout only)
+        if (route.name === 'CreateTrial') {
+          return (
+            <View key={route.key} style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityState={isFocused ? { selected: true } : {}}
+                accessibilityLabel={options.tabBarAccessibilityLabel}
+                testID={options.tabBarTestID}
+                onPress={onPress}
+                onLongPress={onLongPress}
+                style={{
+                  width: 50,
+                  height: 50,
+                  borderRadius: 28,
+                  backgroundColor: theme.colors.primary,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  marginTop: -24,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.3,
+                  shadowRadius: 4,
+                  elevation: 5,
+                }}
+              >
+                <Plus size={32} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          );
+        }
+
+        // Special handling for Videos tab (athlete only)
+        if (route.name === 'Videos') {
+          return (
+            <View key={route.key} style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityState={isFocused ? { selected: true } : {}}
+                accessibilityLabel={options.tabBarAccessibilityLabel}
+                testID={options.tabBarTestID}
+                onPress={onPress}
+                onLongPress={onLongPress}
+                style={{
+                  width: 50,
+                  height: 50,
+                  borderRadius: 28,
+                  backgroundColor: theme.colors.primary,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  marginTop: -24,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.3,
+                  shadowRadius: 4,
+                  elevation: 5,
+                }}
+              >
+                <Plus size={32} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          );
+        }
+
+        // Default tab rendering
+        return (
+          <View key={route.key} style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityState={isFocused ? { selected: true } : {}}
+              accessibilityLabel={options.tabBarAccessibilityLabel}
+              testID={options.tabBarTestID}
+              onPress={onPress}
+              onLongPress={onLongPress}
+              style={{ alignItems: 'center' }}
+            >
+              {options.tabBarIcon({ color: isFocused ? theme.colors.primary : theme.colors.text.secondary })}
+              <Text style={{
+                color: isFocused ? theme.colors.primary : theme.colors.text.secondary,
+                fontSize: 12,
+                marginTop: 4,
+              }}>
+                {label}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        );
+      })}
+    </View>
+  );
+};
+
 const AthleteTabs = () => (
   <Tab.Navigator 
     screenOptions={{ 
       headerShown: false,
       tabBarActiveTintColor: theme.colors.primary,
       tabBarInactiveTintColor: theme.colors.text.secondary,
-      tabBarStyle: {
-        height: Platform.select({
-          ios: 80,
-          android: 70,
-        }),
-        paddingBottom: Platform.select({
-          android: spacing.md,
-          ios: spacing.md
-        })
-      }
     }}
+    tabBar={(props) => <CustomTabBar {...props} userRole="athlete" />}
   >
     <Tab.Screen 
       name="Home" 
@@ -132,26 +344,6 @@ const AthleteTabs = () => (
       component={AthleteVideosScreen} 
       options={{
         tabBarLabel: () => null,
-        tabBarIcon: ({ focused }) => (
-          <View
-            style={{
-              width: 50,
-              height: 50,
-              borderRadius: 28,
-              backgroundColor: theme.colors.primary,
-              justifyContent: 'center',
-              alignItems: 'center',
-              marginTop: -24,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.3,
-              shadowRadius: 4,
-              elevation: 5,
-            }}
-          >
-            <Plus size={32} color="#fff" />
-          </View>
-        ),
       }} 
     />
     <Tab.Screen 
@@ -159,7 +351,6 @@ const AthleteTabs = () => (
       component={ChatListScreen} 
       options={{
         title: 'Messages',
-        tabBarIcon: ({ color }) => <MessageSquareText size={24} color={color} />,
       }}
     />
     <Tab.Screen 
@@ -179,17 +370,8 @@ const ScoutTabs = () => (
       headerShown: false,
       tabBarActiveTintColor: theme.colors.primary,
       tabBarInactiveTintColor: theme.colors.text.secondary,
-      tabBarStyle: {
-        height: Platform.select({
-          ios: 90,
-          android: 75,
-        }),
-        paddingBottom: Platform.select({
-          android: spacing.md,
-          ios: spacing.lg
-        })
-      }
     }}
+    tabBar={(props) => <CustomTabBar {...props} userRole="scout" />}
   >
     <Tab.Screen 
       name="Home" 
@@ -212,26 +394,6 @@ const ScoutTabs = () => (
       component={CreateTrial}
       options={{
         tabBarLabel: () => null,
-        tabBarIcon: ({ focused }) => (
-          <View
-            style={{
-              width: 50,
-              height: 50,
-              borderRadius: 28,
-              backgroundColor: theme.colors.primary,
-              justifyContent: 'center',
-              alignItems: 'center',
-              marginTop: -24,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.3,
-              shadowRadius: 4,
-              elevation: 5,
-            }}
-          >
-            <Plus size={32} color="#fff" />
-          </View>
-        ),
       }} 
     />
     <Tab.Screen 
@@ -239,7 +401,6 @@ const ScoutTabs = () => (
       component={ChatListScreen} 
       options={{
         title: 'Messages',
-        tabBarIcon: ({ color }) => <MessageSquareText size={24} color={color} />,
       }}
     />
     <Tab.Screen 
@@ -314,6 +475,7 @@ const Navigation = observer(() => {
             <Stack.Screen name='LookingFor' component={LookingForScreen} options={{ animation: 'slide_from_bottom'}}/>
             <Stack.Screen name='Sports' component={SportsScreen} options={{ animation: 'slide_from_bottom'}} />
             <Stack.Screen name='PostDetails' component={PostDetails} options={{ animation: 'simple_push' }} />
+            <Stack.Screen name='Requests' component={RequestsScreen} options={{ animation: 'simple_push' }} />
 
 
             {/* General */}

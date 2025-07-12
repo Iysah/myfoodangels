@@ -13,11 +13,7 @@ const NotificationsList = observer(() => {
   const [page, setPage] = useState(1);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMoreData, setHasMoreData] = useState(true);
-  const { notifications, loading, refreshing, loadingMore, error } = store.notifications;
-
-  useEffect(() => {
-    loadNotifications();
-  }, []);
+  const { notifications, loading, refreshing, loadingMore, error, unreadCount } = store.notifications;
 
   const loadNotifications = useCallback(async (shouldRefresh = false) => {
     try {
@@ -39,6 +35,24 @@ const NotificationsList = observer(() => {
       console.error('Error loading notifications:', error);
     }
   }, [page]);
+
+  const loadInitialNotifications = useCallback(async () => {
+    try {
+      console.log('Loading initial notifications');
+      await store.notifications.fetchNotifications(1, true);
+      
+      const currentNotifications = store.notifications.notifications;
+      if (currentNotifications.length === 0 || currentNotifications.length < 10) {
+        setHasMoreData(false);
+      }
+    } catch (error) {
+      console.error('Error loading initial notifications:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadInitialNotifications();
+  }, [loadInitialNotifications]);
 
   const handleRefresh = useCallback(() => {
     setPage(1);

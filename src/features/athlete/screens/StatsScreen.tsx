@@ -24,6 +24,18 @@ interface Event {
   file?: string;
 }
 
+const NotificationBadge = ({ count }: { count: number }) => {
+  if (count === 0) return null;
+  
+  return (
+    <View style={styles.badge}>
+      <Text style={styles.badgeText}>
+        {count > 99 ? '99+' : count.toString()}
+      </Text>
+    </View>
+  );
+};
+
 const MemoizedEventCard = memo(EventCard);
 
 const StatsScreen: FC<any> = observer(({ navigation }) => {
@@ -32,6 +44,7 @@ const StatsScreen: FC<any> = observer(({ navigation }) => {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [hasMoreData, setHasMoreData] = useState(true);
+  const { unreadCount } = store.notifications;
 
   const fetchMyEvents = async (pageNumber: number = 1, shouldRefresh: boolean = false) => {
     try {
@@ -152,6 +165,7 @@ const StatsScreen: FC<any> = observer(({ navigation }) => {
 
         <TouchableOpacity style={GLOBALSTYLES.iconWrapper} onPress={() => navigation.navigate('Notifications')}>
           <Bell size={20} color={'#000'} />
+          <NotificationBadge count={unreadCount} />
         </TouchableOpacity>
       </View>
 
@@ -244,5 +258,22 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  badge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    backgroundColor: theme.colors.primary,
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
 })
