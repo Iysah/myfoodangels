@@ -20,7 +20,8 @@ interface Chat {
   timestamp: string,
   userId: string,
   name: string,
-  email: string
+  email: string,
+  unseenCount: number
 }
 
 const ChatListScreen = () => {
@@ -94,9 +95,11 @@ const ChatListScreen = () => {
       </View>
       <View style={styles.rightContainer}>
         <Text style={styles.timeOrDate}>{formatRelativeTime(item?.timestamp)}</Text>
-        {/* <View style={styles.unreadBadge}>
-          <Text style={styles.unreadText}>{item.unread}</Text>
-        </View> */}
+        {item?.unseenCount > 0 && (
+          <View style={styles.unreadBadge}>
+            <Text style={styles.unreadText}>{item?.unseenCount}</Text>
+          </View>
+        )}
       </View>
     </TouchableOpacity>
   );

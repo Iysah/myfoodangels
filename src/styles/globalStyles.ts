@@ -126,14 +126,13 @@ export const GLOBALSTYLES = StyleSheet.create({
     iconWrapper: {
         width: 40,
         height: 40,
-
         borderRadius: theme.borderRadius.rounded,
         borderWidth: 1,
         borderColor: '#EFEFEF',
         // marginBottom: theme.spacing.lg,
-
         justifyContent: 'center',
         alignItems: 'center',
+        position: 'relative',
     },
     icon: {
         color: '#1A1A1A',

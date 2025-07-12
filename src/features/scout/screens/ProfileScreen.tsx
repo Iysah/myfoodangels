@@ -19,9 +19,9 @@ const ProfileScreen:FC<any> = observer(({ navigation }) => {
   useEffect(() => {
     const loadProfile = async () => {
       try {
-        console.log('Loading profile...');
-        console.log('Auth token:', store.auth.token);
-        console.log('User role:', store.auth.role);
+        // console.log('Loading profile...');
+        // console.log('Auth token:', store.auth.token);
+        // console.log('User role:', store.auth.role);
         await store.scout.fetchProfile();
       } catch (error) {
         console.error('Failed to fetch profile:', error);

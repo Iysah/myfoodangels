@@ -81,7 +81,7 @@ const EventCreationScreen:FC<any> = ({ navigation }) => {
   }
   
   const handleEventPress = useCallback((eventId: string) => {
-    navigation.navigate('EventDetails', { eventId });
+    navigation.navigate('Requests', { eventId });
   }, [navigation]);
 
   const trialItem = useCallback(({ item }: { item: Trial }) => {
@@ -91,7 +91,7 @@ const EventCreationScreen:FC<any> = ({ navigation }) => {
         <TrialCard
           title={item?.name}
           location={item?.location}
-          requests={applicants.length}
+          requests={0}
           date={item?.trialDate}
           tag={item?.trialType}
           onPress={() => handleEventPress(item._id)}

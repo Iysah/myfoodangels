@@ -1,4 +1,5 @@
 import { store } from "../../../store/root";
+import { apiClient } from '../../../services/apiClient';
 
 interface aboutParam {
     about: string;
@@ -18,4 +19,9 @@ interface achievementsParams {
     date: string;
     description: string;
 }
+
+// Fetch unread messages count for athlete
+export const fetchUnreadMessagesCount = async () => {
+  return apiClient.get('/general/message/athlete/sent');
+};
 

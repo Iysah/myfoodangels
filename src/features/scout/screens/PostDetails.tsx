@@ -70,9 +70,8 @@ const PostDetails: FC<PostDetailsProps> = ({ navigation }) => {
         console.log('Like pressed');
     };
 
-    const handleMessage = () => {
-        // Implement message functionality
-        console.log('Message pressed');
+    const handleGoToChat = () => {
+      navigation.navigate('ChatDetail', { chatId: post?.athlete?._id, receiverName: post?.athlete?.name, receiverImage: post?.athlete?.profileImg });
     };
 
   return (
@@ -110,7 +109,7 @@ const PostDetails: FC<PostDetailsProps> = ({ navigation }) => {
                         <TouchableOpacity onPress={handleLike} style={GLOBALSTYLES.iconWrapper}>
                             <Heart size={22} color="#888" style={styles.icon} />
                         </TouchableOpacity>
-                        <TouchableOpacity onPress={handleMessage} style={GLOBALSTYLES.iconWrapper}>
+                        <TouchableOpacity onPress={handleGoToChat} style={GLOBALSTYLES.iconWrapper}>
                             <MessageSquare size={22} color="#888" style={styles.icon} />
                         </TouchableOpacity>
                     </View>
@@ -238,7 +237,8 @@ const styles = StyleSheet.create({
     },
     mediaImg: {
       width: '100%',
-      height: 120,
+      // height: 120,
+      aspectRatio: 16/9,
       borderRadius: 12,
       marginTop: 6,
       backgroundColor: '#eee',

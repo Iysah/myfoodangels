@@ -1,5 +1,5 @@
 import React, { FC, useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, FlatList, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, FlatList, RefreshControl, ActivityIndicator } from 'react-native';
 import { observer } from 'mobx-react-lite';
 import { store } from '../../../store/root';
 import { theme } from '../../../config/theme';
@@ -29,6 +29,18 @@ interface Athlete {
   tag?: string
 }
 
+const NotificationBadge = ({ count }: { count: number }) => {
+  if (count === 0) return null;
+  
+  return (
+    <View style={styles.badge}>
+      <Text style={styles.badgeText}>
+        {count > 99 ? '99+' : count.toString()}
+      </Text>
+    </View>
+  );
+};
+
 
 const HomeScreen:FC<any> = observer(({ navigation }) => {
   const [athletes, setAthletes] = useState<Athlete[]>([])
@@ -38,6 +50,7 @@ const HomeScreen:FC<any> = observer(({ navigation }) => {
   const [hasMoreData, setHasMoreData] = useState(true);
   const [showProfileCompletion, setShowProfileCompletion] = useState(false);
   const { userData } = store.auth;
+  const { unreadCount } = store.notifications;
   // console.log(store.auth.user)
 
   const fetchAthletes = async (pageNumber: number = 1, shouldRefresh: boolean = true) => {
@@ -148,6 +161,7 @@ const HomeScreen:FC<any> = observer(({ navigation }) => {
 
           <TouchableOpacity style={styles.iconWrapper} onPress={() => navigation.navigate('Notifications')}>
             <Bell size={20} color={'#000'} />
+            <NotificationBadge count={unreadCount} />
           </TouchableOpacity>
         </View>
 
@@ -239,9 +253,9 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.rounded,
     borderWidth: 1,
     borderColor: '#EFEFEF',
-
     justifyContent: 'center',
     alignItems: 'center',
+    position: 'relative',
   },
   section: {
     padding: spacing.md,
@@ -258,6 +272,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: 12,
     flexGrow: 1,
+  },
+  badge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    backgroundColor: theme.colors.primary,
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 5,
+  },
+  badgeText: {
+    color: theme.colors.background,
+    fontSize: typography.fontSize.xs,
+    fontWeight: 'bold',
   },
 });
 

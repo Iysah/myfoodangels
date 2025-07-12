@@ -188,7 +188,12 @@ const EventDetailsScreen: FC<any> = observer(({ navigation }) => {
 
                     <View style={styles.profileWrapper}>
                         {/* Organizer Image Placeholder */}
-                        <Image source={{ uri: event?.file }} style={styles.contactImg} />
+                        <TouchableOpacity 
+                            // onPress={() => navigation.navigate('TalentDetails', { athleteId: event?.scout?._id })}
+                            // style={GLOBALSTYLES.iconWrapper}
+                        >
+                            <Image source={{ uri: event?.scout?.profileImg }} style={styles.contactImg} />
+                        </TouchableOpacity>
                         <View style={{ flex: 1 }}>
                             <Text style={{ fontWeight: 'bold' }}>{event?.organizerName}</Text>
                             <Text style={{ fontSize: 12 }}>Head Talent Scout</Text>
@@ -198,9 +203,9 @@ const EventDetailsScreen: FC<any> = observer(({ navigation }) => {
 
                     {/* Contact Organizer Button */}
                     <TouchableOpacity style={styles.contactBtn} onPress={() => navigation.navigate('ChatDetail', { 
-                        chatId: event?.scout,
-                        receiverName: event?.organizerName,
-                        receiverImage: event?.file
+                        chatId: event?.scout?._id,
+                        receiverName: event?.scout?.name,
+                        receiverImage: event?.scout?.profileImg
                     })}>
                         <MessageSquareText size={typography.fontSize.lg} color={theme.colors.primary} />
                         <Text style={styles.btnText}>Contact Organizer</Text>
