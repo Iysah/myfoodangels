@@ -9,27 +9,46 @@ import CustomInput from '../../../components/CustomInput';
 import { spacing } from '../../../config/spacing';
 import { GLOBALSTYLES } from '../../../styles/globalStyles';
 import SolidButton from '../../../components/button/solidButton';
+import { useToast } from '../../../../components/ui/toast';
 
 const LoginScreen:FC<any> = observer(({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const { toast } = useToast();
 
   const handleLogin = async () => {
     try {
       await store.auth.login(email, password);
-      // navigation.navigate('')
-      {store.auth.role?.toLowerCase() === "athlete" ? (
-        navigation.navigate('AthleteTabs') 
-      ) : store.auth.role?.toLowerCase() === "scout" ? (
-        navigation.navigate('ScoutTabs') 
-      ) : (
-        navigation.navigation('Auth')
-      )}
-    } catch (error) {
+
+      // Check the role and navigate accordingly
+      if (store.auth.role?.toLowerCase() === "athlete") {
+        toast({
+          title: 'Success!',
+          description: 'You are now logged in as an athlete.',
+          variant: 'success',
+        });
+        navigation.navigate('AthleteTabs');
+      } else if (store.auth.role?.toLowerCase() === "scout") {
+        toast({
+          title: 'Success!',  
+          description: 'You are now logged in as a scout.',
+          variant: 'success',
+        });
+        navigation.navigate('ScoutTabs');
+      } else {
+        navigation.navigate('Auth');
+      }
+    } catch (error: any) {
       console.error('Login failed:', error);
-      console.log(error)
+      // Optionally show an error toast here
+      toast({
+        title: 'Login failed',
+        description: error.response.data.error[0].message,
+        variant: 'error',
+      });
     }
   };
+
 
   return (
     <PageWrapper>

@@ -13,10 +13,11 @@ import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { GLOBALSTYLES } from '../../../styles/globalStyles'
 import { sportsData } from '../../../data/sports'
 import { observer } from 'mobx-react-lite'
+import { useToast } from '../../../../components/ui/toast'
 
 const AddAchievementScreen:FC<any> = observer(({ navigation }) => {
     const { userData } = store.auth;
-
+    const { toast } = useToast();
     const [title, setTitle] = useState('')
     const [date, setDate] = useState(new Date())
     const [description, setDescription] = useState('')
@@ -55,11 +56,20 @@ const AddAchievementScreen:FC<any> = observer(({ navigation }) => {
             // Convert Date object to ISO string
             const dateString = date.toISOString().split('T')[0];
             await store.auth.addAchievements({ title, sport, date: dateString, description })
+            toast({
+                title: 'Success',
+                description: 'Achievement added successfully',
+                variant: 'success',
+            });
             setLoading(false);
             navigation.goBack();
         } catch (error) {
             console.error('Update about failed:', error);
-            Alert.alert('Error', 'Failed to add achievement. Please try again.');
+            toast({
+                title: 'Error',
+                description: 'Failed to add achievement. Please try again.',
+                variant: 'error',
+            });
         } finally {
             setTitle('')
             setDate(new Date())

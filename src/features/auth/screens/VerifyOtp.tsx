@@ -10,19 +10,25 @@ import ThemeOTPInput from '../components/OtpInput'
 import { GLOBALSTYLES } from '../../../styles/globalStyles'
 import { observer } from 'mobx-react-lite'
 import { ArrowLeft } from 'lucide-react-native'
-
+import { useToast } from '../../../../components/ui/toast'
 
 const VerifyOtp:FC<any> = observer(({ navigation, route }) => {
     const { email } = route.params;
     const [otp, setOtp] = useState(['', '', '', '']);
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const { toast } = useToast();
 
     const handleVerify = async () => {
         try {
             setIsLoading(true);
             const otpString = otp.join('');
             await store.auth.verifyEmail(email, otpString);
+            toast({
+                title: 'Success',
+                description: 'Account verified successfully',
+                variant: 'success',
+            });
             navigation.navigate('CreatePassword', { email });
         } catch (error) {
             setError(error instanceof Error ? error.message : 'Verification failed');

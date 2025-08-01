@@ -55,6 +55,7 @@ const HomeScreen:FC<any> = observer(({ navigation }) => {
   const [page, setPage] = useState(1);
   const [hasMoreData, setHasMoreData] = useState(true);
   const [showProfileCompletion, setShowProfileCompletion] = useState(false);
+  const [profileCompletionPercent, setProfileCompletionPercent] = useState<number>(0);
   const [searchFilters, setSearchFilters] = useState<SearchFilters>({
     searchType: 'scout',
     name: '',
@@ -66,34 +67,19 @@ const HomeScreen:FC<any> = observer(({ navigation }) => {
   const { userData } = store.auth;
   const { unreadCount } = store.notifications;
 
-  const handleSearch = async (searchText: string) => {
+  const fetchProfileCompletion = async (): Promise<void> => {
     try {
-      setLoading(true);
-      setPage(1);
-      setHasMoreData(true);
-
-      const updatedFilters = {
-        ...searchFilters,
-        name: searchText
-      };
-      setSearchFilters(updatedFilters);
-
-      const response = await apiClient.get<any>('/athlete/trials/search', {
-        params: {
-          ...updatedFilters,
-          page: 1,
-          limit: 10
-        }
-      });
-
-      const newEvents = response.data.data?.performances || [];
-      setEvents(newEvents);
-      setError(null);
+      const response = await apiClient.get<{ data: number }>('/auth/profile-completed');
+      const completionPercent = response.data;
+      console.log(completionPercent, 'completionPercent')
+      setProfileCompletionPercent(completionPercent);
+      
+      // Show profile completion component if percentage is below 100
+      setShowProfileCompletion(completionPercent < 100);
     } catch (error: any) {
-      console.error('Error searching events:', error);
-      setError(error.message || 'Failed to search events');
-    } finally {
-      setLoading(false);
+      console.error('Error fetching profile completion:', error);
+      // Default to showing the component if there's an error
+      setShowProfileCompletion(true);
     }
   };
 
@@ -132,6 +118,7 @@ const HomeScreen:FC<any> = observer(({ navigation }) => {
 
   useEffect(() => {
     fetchEvents();
+    fetchProfileCompletion();
   }, []);
 
   const handleEventPress = useCallback((eventId: string) => {

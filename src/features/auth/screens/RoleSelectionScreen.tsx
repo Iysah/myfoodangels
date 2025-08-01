@@ -41,7 +41,7 @@ const RoleSelectionScreen:FC<any> = observer(({ navigation }) => {
       }}
     >
       <SafeAreaProvider style={{ backgroundColor: 'transparent', position: 'relative', paddingTop: Constants.statusBarHeight }}>
-        <StatusBar backgroundColor={'#060667'} barStyle={'dark-content'} />
+        <StatusBar backgroundColor={'#fff'} barStyle={'dark-content'} />
         <View style={GLOBALSTYLES.wrapper}>
           <Text style={styles.title}>Who Are You?</Text>
           

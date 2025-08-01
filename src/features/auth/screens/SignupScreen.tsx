@@ -1,4 +1,4 @@
-import React, { FC, useState } from 'react';
+import React, { FC, useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { observer } from 'mobx-react-lite';
 import { store } from '../../../store/root';
@@ -12,6 +12,7 @@ import { signup } from '../services/api';
 import SolidButton from '../../../components/button/solidButton';
 import { Dropdown } from 'react-native-element-dropdown';
 import { spacing } from '../../../config/spacing';
+import { useToast } from '../../../../components/ui/toast';
 
 const SignupScreen:FC<any> = observer(({ navigation }) => {
   const [fullName, setFullName] = useState('')
@@ -20,6 +21,20 @@ const SignupScreen:FC<any> = observer(({ navigation }) => {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false)
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  // Debug effect to log role changes
+  useEffect(() => {
+    console.log('Store auth role changed:', store.auth.role);
+    console.log('Selected role changed:', selectedRole);
+  }, [store.auth.role, selectedRole]);
+
+  // Set selectedRole from store when component mounts
+  useEffect(() => {
+    if (store.auth.role && !selectedRole) {
+      setSelectedRole(store.auth.role);
+    }
+  }, []);
 
   const roleData = [
     { label: 'Athlete', value: UserRole.ATHLETE },
@@ -27,34 +42,77 @@ const SignupScreen:FC<any> = observer(({ navigation }) => {
   ];
 
   const handleSignup = async () => {
-    setSelectedRole(store.auth.role)
     if (!fullName || !email || !password) {
-      Alert.alert('Error', 'Kindly fill all required input');
+      toast({
+        title: 'Error',
+        description: 'Kindly fill all required input',
+        variant: 'error',
+      });
       return;
     }
 
-    if (!selectedRole) {
-      Alert.alert('Error', 'Please select your role before signing up.');
+    // Determine the role to use - prioritize selectedRole over store.auth.role
+    const roleToUse = selectedRole || store.auth.role;
+    
+    console.log(selectedRole, 'selectedRole')
+    console.log(store.auth.role, 'store.auth.role')
+    console.log(roleToUse, 'roleToUse')
+
+    if (!roleToUse) {
+      toast({
+        title: 'Error',
+        description: 'Please select your role before signing up.',
+        variant: 'error',
+      });
       return;
     }
 
     try {
       setError(null);
       setIsLoading(true);
-      store.auth.role = selectedRole;
-      console.log(email, fullName, password, store.auth.role)
+      
+      // Update store with the role
+      store.auth.role = roleToUse;
+      
+      console.log('About to register with data:', {
+        email,
+        password,
+        name: fullName,
+        accountType: roleToUse,
+      });
       await store.auth.register({
         email,
         password,
         name: fullName,
-        accountType: selectedRole as UserRole,
+        accountType: roleToUse as UserRole,
       });
       setIsLoading(false);
+      toast({
+        title: 'Success',
+        description: 'Account created successfully, kindly check your email for verification',
+        variant: 'success',
+      });
       navigation.navigate('VerifyEmail', { email });
     } catch (error: any) {
       setIsLoading(false);
       console.log(error)
       console.error('Signup failed:', error);
+      
+      // Handle different error response formats
+      let errorMessage = 'Signup failed';
+      if (error.response?.data?.error?.[0]?.message) {
+        errorMessage = error.response.data.error[0].message;
+      } else if (error.response?.data?.errors?.[0]?.msg) {
+        errorMessage = error.response.data.errors[0].msg;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      toast({
+        title: 'Error',
+        description: errorMessage,
+        variant: 'error',
+      });
     }
   };
 
@@ -97,13 +155,13 @@ const SignupScreen:FC<any> = observer(({ navigation }) => {
           style={styles.passwordInput}
         />
 
-        {store.auth.role && (
+        {(store.auth.role || selectedRole) && (
           <View style={{ marginBottom: theme.spacing.md }}>
-            <Text style={styles.roleText}>Selected Role: {store.auth.role}</Text>
+            <Text style={styles.roleText}>Selected Role: {store.auth.role || selectedRole}</Text>
           </View>
         )}
 
-        {!store.auth.role && (
+        {!store.auth.role && !selectedRole && (
           <View style={styles.rolePickerContainer}>
             <Text style={styles.roleLabel}>Select your role</Text>
             <Dropdown

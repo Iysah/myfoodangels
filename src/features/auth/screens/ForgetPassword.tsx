@@ -8,14 +8,21 @@ import { typography } from '../../../config/typography'
 import SolidButton from '../../../components/button/solidButton'
 import { GLOBALSTYLES } from '../../../styles/globalStyles'
 import { store } from '../../../store/root'
+import { useToast } from '../../../../components/ui/toast'
 
 const ForgetPassword:FC<any> = ({ navigation }) => {
     const [email, setEmail] = useState('')
-
+    const { toast } = useToast();
+    
     const handleForgetPassword = async () => {
         try {
             await store.auth.forgetPassword
             navigation.navigate('VerifyEmail', { email })
+            toast({
+                title: 'Success',
+                description: 'Verification code sent to your email',
+                variant: 'success',
+            });
         } catch (error) {
             console.error(error)
         }

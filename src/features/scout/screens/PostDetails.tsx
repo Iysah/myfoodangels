@@ -8,6 +8,7 @@ import { useVideoPlayer, VideoView } from 'expo-video'
 import { spacing } from '../../../config/spacing'
 import { apiClient } from '../../../services/apiClient'
 import { theme } from '../../../config/theme'
+import { useToast } from '../../../../components/ui/toast'
 
 interface PostData {
     athlete: {
@@ -28,6 +29,7 @@ interface PostDetailsProps {
 const PostDetails: FC<PostDetailsProps> = ({ navigation }) => {
     const route = useRoute()
     const { athleteId } = route.params as { athleteId: string }
+    const { toast } = useToast();
     // console.log(athleteId)
 
     const [isLoading, setIsLoading] = useState(false);
@@ -68,6 +70,11 @@ const PostDetails: FC<PostDetailsProps> = ({ navigation }) => {
     const handleLike = () => {
         // Implement like functionality
         console.log('Like pressed');
+        toast({
+          title: 'Success',
+          description: 'Liked successfully',
+          variant: 'success',
+        });
     };
 
     const handleGoToChat = () => {

@@ -132,8 +132,8 @@ const CustomTabBar = ({ state, descriptors, navigation, userRole }: any) => {
     <View style={{
       flexDirection: 'row',
       height: Platform.select({
-        ios: userRole === 'scout' ? 90 : 80,
-        android: userRole === 'scout' ? 75 : 70,
+        ios: userRole === 'scout' ? 90 : 85,
+        android: userRole === 'scout' ? 85 : 85,
       }),
       backgroundColor: '#fff',
       borderTopWidth: 1,

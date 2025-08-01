@@ -6,11 +6,13 @@ import { spacing } from '../../../config/spacing';
 import { theme } from '../../../config/theme';
 import { typography } from '../../../config/typography';
 import { store } from '../../../store/root';
+import { useToast } from '../../../../components/ui/toast';
 
 const SportsScreen:FC<any> = ({ navigation }) => {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<string[]>([]);
-
+  const { toast } = useToast();
+  
   const filteredSports = sportsData.filter(sport =>
     sport.label.toLowerCase().includes(search.toLowerCase())
   );
@@ -30,6 +32,11 @@ const SportsScreen:FC<any> = ({ navigation }) => {
     try {
       console.log('selected', selected);
       await store.scout.updateProfileSports(selected);
+      toast({
+        title: 'Success',
+        description: 'Sports added successfully',
+        variant: 'success',
+      });
       navigation.goBack();
     } catch (error) {
       console.error('Add sports failed:', error);

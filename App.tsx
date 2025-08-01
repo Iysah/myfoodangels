@@ -7,6 +7,7 @@ import { store } from './src/store/root';
 import * as SplashScreen from 'expo-splash-screen';
 import { useCallback, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ToastProvider } from './components/ui/toast';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync().catch(() => {
@@ -55,10 +56,12 @@ export default function App() {
 
   return (
     <Provider store={store}>
-      <SafeAreaProvider onLayout={onLayoutRootView}>
-        <StatusBar style="auto" />
-        <Navigation />
-      </SafeAreaProvider>
+      <ToastProvider>
+        <SafeAreaProvider onLayout={onLayoutRootView}>
+          <StatusBar style="auto" />
+          <Navigation />
+        </SafeAreaProvider>
+      </ToastProvider>
     </Provider>
   );
 }
