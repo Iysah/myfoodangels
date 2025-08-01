@@ -9,11 +9,13 @@ import { spacing } from '../../../config/spacing'
 import { GLOBALSTYLES } from '../../../styles/globalStyles'
 import { store } from '../../../store/root'
 import * as ImagePicker from 'expo-image-picker';
+import { useToast } from '../../../../components/ui/toast'
 
 const ProfileUpdateScreen:FC<any> = observer(({ navigation}) => {
     const [image, setImage] = useState<any>(null);
     const { userData } = store.auth;
-
+    const { toast } = useToast();
+    
     const handleImageUpload = async () => {
         // Request permissions first
         const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
@@ -45,6 +47,11 @@ const ProfileUpdateScreen:FC<any> = observer(({ navigation}) => {
                 });
 
                 await store.auth.updateProfileImage(formData);
+                toast({
+                    title: 'Success',
+                    description: 'Profile image updated',
+                    variant: 'success',
+                });
             } catch (error: any) {
                 console.error('Failed to upload image: ', error.response.error.message);
                 // You might want to show an error message to the user here

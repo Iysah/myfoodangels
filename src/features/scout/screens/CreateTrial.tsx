@@ -14,6 +14,7 @@ import { format } from 'date-fns';
 import * as ImagePicker from 'expo-image-picker';
 import { apiClient } from '../../../services/apiClient';
 import { observer } from 'mobx-react-lite';
+import { useToast } from '../../../../components/ui/toast'
 
 
 const CreateTrial:FC<any> = observer(({ navigation }) => {
@@ -45,6 +46,7 @@ const CreateTrial:FC<any> = observer(({ navigation }) => {
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
   const [showDeadlinePicker, setShowDeadlinePicker] = useState(false);
   const [maxAttendance, setMaxAttendance] = useState('10');
+  const { toast } = useToast();
 
   const handleStartDateChange = (event: any, selectedDate?: Date) => {
     setShowStartDatePicker(false);
@@ -111,7 +113,11 @@ const CreateTrial:FC<any> = observer(({ navigation }) => {
       !deadline || !location || !ageGroup || !skillLevel || !trialFees || !refoundPolicy ||
       !specificRequirement || !description || !image
     ) {
-      Alert.alert('Error', 'Please fill in all fields and select an image');
+      toast({
+        title: 'Error',
+        description: 'Please fill in all fields and select an image',
+        variant: 'error',
+      });
       return;
     }
 
@@ -165,19 +171,35 @@ const CreateTrial:FC<any> = observer(({ navigation }) => {
       // API call
       const response = await apiClient.post('/scout/create-trial', formData);
 
-      Alert.alert('Success', 'Event created successfully!');
+      toast({
+        title: 'Success',
+        description: 'Event created successfully',
+        variant: 'success',
+      });
       console.log('response', response);
       navigation.navigate('EventCreationScreen');
     } catch (error: any) {
       if (error.response) {
         console.log('Error response:', error.response);
-        Alert.alert('Error', error.response.data?.message || 'Failed to create event');
+        toast({
+          title: 'Error',
+          description: error.response.data?.message || 'Failed to create event',
+          variant: 'error',
+        });
       } else if (error.request) {
         console.log('Error request:', error.request);
-        Alert.alert('Error', 'No response from server');
+        toast({
+          title: 'Error',
+          description: 'No response from server',
+          variant: 'error',
+        });
       } else {
         console.log('Error message:', error.message);
-        Alert.alert('Error', error.message || 'Failed to create event');
+        toast({
+          title: 'Error',
+          description: error.message || 'Failed to create event',
+          variant: 'error',
+        });
       }
     } finally {
       setLoading(false);

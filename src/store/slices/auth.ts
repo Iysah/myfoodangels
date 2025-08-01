@@ -53,7 +53,7 @@ export class AuthStore implements AuthState {
       console.log(response)
       const result = response.data
       const statistic = result?.user?.statistic;
-      console.log('data: ', result)
+      // console.log('data: ', result)
       this.role = result.user.accountType;
       console.log('role', this.role)
       await AsyncStorage.setItem('userRole', this.role || '');
@@ -114,13 +114,18 @@ export class AuthStore implements AuthState {
       this.isLoading = true;
       this.error = null;
       
+      console.log('Registering with data:', data);
       const response = await apiClient.post<any>('/auth/signup', data);
 
       console.log(response)
     } catch (error: any) {
+      console.log('Registration error response:', error.response?.data);
       if (error.response?.data?.error?.[0]?.message) {
         this.error = error.response.data.error[0].message;
         console.log(error.response.data.error[0].message)
+      } else if (error.response?.data?.errors?.[0]?.msg) {
+        this.error = error.response.data.errors[0].msg;
+        console.log(error.response.data.errors[0].msg)
       } else if (error.error?.[0]?.message) {
         this.error = error.error[0].message;
         console.log(error.error[0].message)
@@ -147,6 +152,23 @@ export class AuthStore implements AuthState {
       this.token = result.token;
       this.user = result.user;
       // this.role = result.user.accountType;
+    } catch (error: any) {
+      this.error = error.message;
+      console.log(error)
+      throw error;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  async resendVerificationEmail(email: string) {
+    try {
+      this.isLoading = true;
+      this.error = null;
+      
+      const response = await apiClient.post<any>('/auth/resend-email', { email });
+
+      console.log(response)
     } catch (error: any) {
       this.error = error.message;
       console.log(error)
@@ -241,7 +263,10 @@ export class AuthStore implements AuthState {
       this.isLoading = true;
       this.error = null;
       
-      const response = await apiClient.post<any>('/athlete/profile-about', { about: about });
+      // Determine endpoint based on role
+      const role = (this.role || this.userData?.role || '').toLowerCase();
+      const endpoint = role === 'scout' ? '/scout/profile-about' : '/athlete/profile-about';
+      const response = await apiClient.post<any>(endpoint, { about: about });
 
       if (response?.status && response.data?.data) {
         const userData = response.data.data;

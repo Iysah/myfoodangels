@@ -9,18 +9,25 @@ import SolidButton from '../../../components/button/solidButton'
 import { theme } from '../../../config/theme'
 import { typography } from '../../../config/typography'
 import { spacing } from '../../../config/spacing'
+import { useToast } from '../../../../components/ui/toast'
 
 const VerifyEmail:FC<any> = ({ navigation, route }) => {
   const { email } = route.params;
   const [otp, setOtp] = useState(['', '', '', '']);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
   const handleVerify = async () => {
     try {
       setIsLoading(true);
       const otpString = otp.join('');
       await store.auth.verifyEmail(email, otpString);
+      toast({
+        title: 'Success',
+        description: 'Account verified successfully',
+        variant: 'success',
+      });
       navigation.navigate('Login');
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Verification failed');
@@ -28,6 +35,17 @@ const VerifyEmail:FC<any> = ({ navigation, route }) => {
       setIsLoading(false);
     }
   };
+
+  const handleResend = async () => {
+    try {
+      setIsLoading(true);
+      await store.auth.resendVerificationEmail(email);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Resend failed');
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   return (
     <PageWrapper>
@@ -56,7 +74,7 @@ const VerifyEmail:FC<any> = ({ navigation, route }) => {
         // isLoading={isLoading || otp.join('').length !== 4}
       />
 
-      <Text style={styles.resendText}>Didn't get the code? <Text style={GLOBALSTYLES.linkText}>Click here to resend</Text></Text>
+      <Text style={styles.resendText}>Didn't get the code? <Text style={GLOBALSTYLES.linkText} onPress={handleResend}>Click here to resend</Text></Text>
     </PageWrapper>
   )
 }

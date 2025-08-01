@@ -11,6 +11,7 @@ const ProfileCompletion = ({ onClose, onPress }: { onClose: () => void, onPress:
     const fetchCompletion = async () => {
       try {
         const res = await apiClient.get<{ data: number }>('/auth/profile-completed');
+        console.log(res.data, 'profile data')
         setPercent(res.data);
       } catch (e) {
         setPercent(0);

@@ -8,6 +8,7 @@ import { useRoute } from '@react-navigation/native'
 import { fetchTrialApplicants, acceptApplicant, rejectApplicant } from '../api'
 import { spacing } from '../../../config/spacing'
 import { useVideoPlayer, VideoView } from 'expo-video'
+import { useToast } from '../../../../components/ui/toast'
 
 // Types for API response
 interface Trial {
@@ -37,7 +38,7 @@ interface ApplicantsResponse {
 const RequestsScreen:FC<any> = ({ navigation }) => {
   const route = useRoute()
   const { eventId } = route.params as { eventId: string }
-
+  const { toast } = useToast();
   const [loading, setLoading] = useState(false)
   const [applicants, setApplicants] = useState<Applicant[]>([])
   const [trial, setTrial] = useState<Trial | null>(null)
@@ -74,6 +75,11 @@ const RequestsScreen:FC<any> = ({ navigation }) => {
       // Refresh list after action
       const res = await fetchTrialApplicants(eventId) as ApplicantsResponse
       setApplicants(res.data.Applicants || [])
+      toast({
+        title: 'Success',
+        description: 'Applicant ' + action + 'ed successfully',
+        variant: 'success',
+      });
     } catch (e) {
       // handle error
     } finally {

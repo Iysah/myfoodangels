@@ -60,6 +60,11 @@ const ChatDetailScreen: FC<ChatDetailScreenProps> = observer(({ navigation }) =>
     };
   }, [chatId]);
 
+  // Scroll to bottom when a new message arrives
+  useEffect(() => {
+    flatListRef.current?.scrollToEnd({ animated: true });
+  }, [store.chat.messages.length]);
+
   // Early return if userData is not available
   if (!userData) {
     return (

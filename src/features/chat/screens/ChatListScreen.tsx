@@ -11,6 +11,8 @@ import { apiClient } from '../../../services/apiClient';
 import { formatDate, formatRelativeTime, formatTime } from '../../../utils/dateFormat';
 import { spacing } from '../../../config/spacing';
 import { store } from '../../../store/root';
+import { addToQueue, processQueue } from '../../../utils/requestQueue';
+import uuid from 'react-native-uuid';
 
 interface Chat {
   _id: string;
@@ -35,7 +37,10 @@ const ChatListScreen = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await apiClient.get<any>(`/general/message/athlete/chat-list`);
+      const url = store.auth.role?.toLowerCase() === 'scout'
+      ? '/general/message/scout/chat-list'
+      : '/general/message/athlete/chat-list'; 
+      const response = await apiClient.get<any>(url);
       console.log(response)
       setLoading(false)
       setConversations(response.data);
@@ -47,28 +52,27 @@ const ChatListScreen = () => {
     }
   };
 
-  const fetchScoutConversations = async () => {
+  const markMessageAsRead = async (chatId: string) => {
+    const url = store.auth.role?.toLowerCase() === 'scout'
+      ? '/general/message/scout/mark-read'
+      : '/general/message/athlete/mark-read';
     try {
-      setLoading(true);
-      setError(null);
-      const response = await apiClient.get<any>(`/general/message/scout/chat-list`);
-      setLoading(false)
-      console.log(response)
-      setConversations(response.data);
+      await apiClient.post<any>(url, { sender: chatId });
     } catch (err) {
-      console.error("Failed to fetch conversations:", err);
-      setError("Failed to load chats. Please try again.");
-    } finally {
-      setLoading(false);
+      // Queue the request for retry with the correct body
+      await addToQueue({
+        id: uuid.v4() as string,
+        type: 'POST',
+        url,
+        data: { sender: chatId },
+        retries: 0,
+      });
     }
   };
 
   useEffect(() => {
-    if (store.auth.role?.toLowerCase() === 'athlete') {
-      fetchConversations();
-    } else if (store.auth.role?.toLowerCase() === 'scout') {
-      fetchScoutConversations();
-    }
+    processQueue(); // Try to process any queued requests on mount
+    fetchConversations();
   }, [store.auth.role]);
 
   const handleSearch = () => {
@@ -78,11 +82,14 @@ const ChatListScreen = () => {
   const renderItem = ({ item }: {item: Chat}) => (
     <TouchableOpacity
       style={styles.itemContainer}
-      onPress={() => (navigation as any).navigate('ChatDetail', { 
-        chatId: item?.userId,
-        receiverName: item?.name,
-        receiverImage: item?.fileUrl
-      })}
+      onPress={() => {
+        (navigation as any).navigate('ChatDetail', {
+          chatId: item?.userId,
+          receiverName: item?.name,
+          receiverImage: item?.fileUrl
+        });
+        markMessageAsRead(item?.userId); // Fire and forget
+      }}
       activeOpacity={0.7}
     >
       <View style={styles.avatarWrapper}>
@@ -104,14 +111,6 @@ const ChatListScreen = () => {
     </TouchableOpacity>
   );
 
-  // if (loading) {
-  //   return (
-  //       <View style={styles.centered}>
-  //           <ActivityIndicator size="large" color="#007AFF" />
-  //           <Text style={styles.loadingText}>Loading chats...</Text>
-  //       </View>
-  //   );
-  // }
 
   if (error) {
     return (

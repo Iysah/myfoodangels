@@ -144,7 +144,7 @@ const OnboardingRoleScreen:FC<any> = ({ navigation }) => {
           flex: 1,
       }}
     >
-      <SafeAreaProvider style={{ backgroundColor: 'transparent', position: 'relative', paddingTop: Constants.statusBarHeight }}>
+    <SafeAreaProvider style={{ backgroundColor: 'transparent', position: 'relative', paddingTop: Constants.statusBarHeight }}>
         <StatusBar backgroundColor={'#fff'} barStyle={'dark-content'} />
         <View style={styles.wrapper}>
           <View style={styles.welcomeWrapper}>

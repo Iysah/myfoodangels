@@ -12,6 +12,7 @@ import { spacing } from '../../../config/spacing'
 import { typography } from '../../../config/typography'
 import { store } from '../../../store/root'
 import { observer } from 'mobx-react-lite'
+import { useToast } from '../../../../components/ui/toast'
 
 const AddEducationScreen:FC<any> = observer(({ navigation }) => {
   const [school, setSchool] = useState('')
@@ -26,7 +27,7 @@ const AddEducationScreen:FC<any> = observer(({ navigation }) => {
   const [formattedStartDate, setFormattedStartDate] = useState('DD MM YYYY');
   const [formattedEndDate, setFormattedEndDate] = useState('DD MM YYYY');
   const [isDateObject, setIsDateObject] = useState(false);
-
+  const { toast } = useToast();
   const handleConfirmStartDate = (date: Date): void => {
     // Store the actual Date object
     setStartDate(date);
@@ -84,7 +85,13 @@ const AddEducationScreen:FC<any> = observer(({ navigation }) => {
         startDate: startDateString,
         endDate: endDateString,
         description, })
+
       setLoading(false);
+      toast({
+        title: 'Success',
+        description: 'Education added successfully',
+        variant: 'success',
+      });
       navigation.goBack();
     } catch (error) {
         console.error('Update about failed:', error);

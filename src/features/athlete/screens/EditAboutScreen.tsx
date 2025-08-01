@@ -9,13 +9,19 @@ import SolidButton from '../../../components/button/solidButton'
 import { store } from '../../../store/root'
 import { typography } from '../../../config/typography'
 import { observer } from 'mobx-react-lite'
+import { useToast } from '../../../../components/ui/toast'
 
 const EditAboutScreen:FC<any> = observer(({ navigation }) => {
     const { userData } = store.auth;
     const [about, setAbout] = useState<any>(userData?.about)
-
+    const { toast } = useToast();
     const handleUpdate = async () => {
         await store.auth.updateAbout(about);
+        toast({
+            title: 'Success',
+            description: 'About updated successfully',
+            variant: 'success',
+        });
         setAbout('')
     }
 

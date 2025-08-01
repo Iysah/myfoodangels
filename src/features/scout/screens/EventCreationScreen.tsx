@@ -130,7 +130,7 @@ const EventCreationScreen:FC<any> = ({ navigation }) => {
   return (
     <SafeAreaProvider style={{ backgroundColor: theme.colors.background, position: 'relative', paddingTop: Constants.statusBarHeight }}>
       <View style={GLOBALSTYLES.wrapper}>
-        <Text style={[GLOBALSTYLES.title, { marginBottom: 20}]}>Activities</Text>
+        <Text style={[GLOBALSTYLES.title, { marginBottom: 20}]}>My Activities</Text>
 
         <FlatList
           data={events}
