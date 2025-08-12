@@ -33,7 +33,9 @@ export interface UserData {
   v02max?: string; 
   sprint?: string;
   vertical?: string
-  agility?: string 
+  agility?: string;
+  sports?: string[];
+  lookFor?: string[];
 }
 
 export interface AuthState {

@@ -1,4 +1,4 @@
-import { makeAutoObservable } from 'mobx';
+import { makeAutoObservable, runInAction } from 'mobx';
 import { RootStore } from '../root';
 import { apiClient } from '../../services/apiClient';
 import { ScoutProfile, AthleteProfile, SearchFilters } from '../../types/user';
@@ -159,6 +159,25 @@ export class ScoutStore {
       this.error = null;
       
       const response = await apiClient.post<any>('/scout/profile-bio', data);
+      
+      // Update userData with new bio information
+      if (response.data && this.rootStore.auth.userData) {
+        runInAction(() => {
+          if (this.rootStore.auth.userData) {
+            this.rootStore.auth.userData.fullName = data.name;
+            this.rootStore.auth.userData.position = data.position;
+            this.rootStore.auth.userData.country = data.country;
+            this.rootStore.auth.userData.city = data.city;
+          }
+        });
+        console.log('Updated userData bio:', {
+          name: this.rootStore.auth.userData?.fullName,
+          position: this.rootStore.auth.userData?.position,
+          country: this.rootStore.auth.userData?.country,
+          city: this.rootStore.auth.userData?.city
+        });
+      }
+      
       return response;
     } catch (error: any) {
       this.error = error.message;
@@ -177,6 +196,17 @@ export class ScoutStore {
         newSports
       });
       console.log('response', response);
+      
+      // Update userData with new sports
+      if (response.data && this.rootStore.auth.userData) {
+        runInAction(() => {
+          if (this.rootStore.auth.userData) {
+            this.rootStore.auth.userData.sports = newSports;
+          }
+        });
+        console.log('Updated userData sports:', this.rootStore.auth.userData?.sports);
+      }
+      
       return response;
     } catch (error: any) {
       this.error = error.message;
@@ -194,6 +224,17 @@ export class ScoutStore {
       const response = await apiClient.post<any>('/scout/profile/add-look-for', {
         newLookFor
       });
+      
+      // Update userData with new lookFor
+      if (response.data && this.rootStore.auth.userData) {
+        runInAction(() => {
+          if (this.rootStore.auth.userData) {
+            this.rootStore.auth.userData.lookFor = newLookFor;
+          }
+        });
+        console.log('Updated userData lookFor:', this.rootStore.auth.userData?.lookFor);
+      }
+      
       return response;
     } catch (error: any) {
       this.error = error.message;

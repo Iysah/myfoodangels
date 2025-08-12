@@ -30,6 +30,8 @@ export default function App() {
         await Promise.all([
           // Add any async operations you need here
           AsyncStorage.getItem('onboardingCompleted'),
+          // Initialize authentication
+          store.auth.initializeAuth(),
           // Add more async operations as needed
         ]);
       } catch (e) {

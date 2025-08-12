@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View, Image, TouchableOpacity, ScrollView } from 'react-native'
-import React, { FC, useEffect } from 'react'
+import React, { FC, useCallback, useEffect } from 'react'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { theme } from '../../../config/theme'
 import Constants from 'expo-constants'
@@ -10,6 +10,7 @@ import { spacing } from '../../../config/spacing'
 import { observer } from 'mobx-react-lite'
 import { store } from '../../../store/root'
 import { typography } from '../../../config/typography'
+import { useFocusEffect } from '@react-navigation/native'
 
 
 const ProfileScreen:FC<any> = observer(({ navigation }) => {
@@ -17,19 +18,24 @@ const ProfileScreen:FC<any> = observer(({ navigation }) => {
   const { profile } = store.scout;
 
   useEffect(() => {
-    const loadProfile = async () => {
-      try {
-        // console.log('Loading profile...');
-        // console.log('Auth token:', store.auth.token);
-        // console.log('User role:', store.auth.role);
-        await store.scout.fetchProfile();
-      } catch (error) {
-        console.error('Failed to fetch profile:', error);
-      }
-    };
-
+    
     loadProfile();
   }, []);
+  
+  useFocusEffect(
+    useCallback(() => {
+      loadProfile(); // fetch or refresh sports list
+    }, [])
+  );
+
+  
+  const loadProfile = async () => {
+    try {
+      await store.scout.fetchProfile();
+    } catch (error) {
+      console.error('Failed to fetch profile:', error);
+    }
+  };
 
   console.log('profile', profile);
   console.log('userData', userData);
@@ -62,7 +68,10 @@ const ProfileScreen:FC<any> = observer(({ navigation }) => {
               <View style={styles.statusDot} />
             </TouchableOpacity>
             <Text style={styles.profileName}>{profile?.name || userData?.fullName}</Text>
-            <Text style={styles.profileTeam}><BriefcaseBusiness size={16} color={theme.colors.text.primary} /> {profile?.title || 'Scout'}</Text>
+            <View style={[GLOBALSTYLES.row, { justifyContent: 'center'}]}>
+              <BriefcaseBusiness size={16} color={theme.colors.text.primary} /> 
+              <Text style={styles.profileTeam}>{profile?.title || 'Scout'}</Text>
+            </View>
             <Text style={styles.profileRole}>{profile?.position || 'Talent Scout'}</Text>
           </View>
 
@@ -197,7 +206,7 @@ const styles = StyleSheet.create({
     color: '#222',
     textAlign: 'center',
 
-    marginBottom: spacing.sm,
+    // marginBottom: spacing.sm,
   },
   profileRole: {
     fontSize: 15,

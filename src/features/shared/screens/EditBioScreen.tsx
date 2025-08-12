@@ -72,7 +72,7 @@ const EditBioScreen:FC<any> = observer(({ navigation }) => {
         </TouchableOpacity>
         <Text style={styles.title}>Edit Bio</Text>
 
-        <Text style={styles.subTitle}>Write about yourself to easily discover opportunities, also Scout can reach you faster.</Text>
+        <Text style={styles.subTitle}>Write about yourself to easily discover opportunities, also {store.auth.role?.toLowerCase() === "athlete" ? "Scout" : "Athlete"} can reach you faster.</Text>
 
         {store.auth.role?.toLowerCase() === "athlete" ? (
           <ScrollView showsVerticalScrollIndicator={false} style={styles.container}>

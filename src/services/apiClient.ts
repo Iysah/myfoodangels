@@ -21,8 +21,8 @@ class ApiClient {
     this.client.interceptors.request.use(
       (config) => {
         const token = store.auth.token;
-        console.log('API Request:', config.method?.toUpperCase(), config.url);
-        console.log('Auth token:', token ? 'Present' : 'Missing');
+        // console.log('API Request:', config.method?.toUpperCase(), config.url);
+        // console.log('Auth token:', token ? 'Present' : 'Missing');
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
@@ -41,8 +41,18 @@ class ApiClient {
         console.error('API Error:', error.response?.status, error.config?.url);
         console.error('Error data:', error.response?.data);
         if (error.response?.status === 401) {
-          // Handle token expiration
-          await store.auth.logout();
+          // Try to refresh token first
+          try {
+            await store.auth.refreshToken();
+            // Retry the original request
+            const originalRequest = error.config;
+            if (originalRequest) {
+              return this.client(originalRequest);
+            }
+          } catch (refreshError) {
+            // If refresh fails, logout
+            await store.auth.logout();
+          }
         }
         return Promise.reject(error);
       }

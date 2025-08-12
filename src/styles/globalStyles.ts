@@ -21,7 +21,7 @@ export const GLOBALSTYLES = StyleSheet.create({
     row: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: spacing.md
+        gap: spacing.sm
     },
     header: {
         paddingHorizontal: spacing.md,

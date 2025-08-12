@@ -41,7 +41,7 @@ const ChatListScreen = () => {
       ? '/general/message/scout/chat-list'
       : '/general/message/athlete/chat-list'; 
       const response = await apiClient.get<any>(url);
-      console.log(response)
+      console.log('Chat list response:', response);
       setLoading(false)
       setConversations(response.data);
     } catch (err) {
@@ -53,20 +53,52 @@ const ChatListScreen = () => {
   };
 
   const markMessageAsRead = async (chatId: string) => {
+    if (!chatId || chatId === 'undefined' || chatId === 'null') {
+      console.log('Invalid chatId provided for mark-read:', chatId);
+      return;
+    }
+
     const url = store.auth.role?.toLowerCase() === 'scout'
       ? '/general/message/scout/mark-read'
       : '/general/message/athlete/mark-read';
+    
+    console.log('Marking message as read for chatId:', chatId);
+    console.log('Current user ID:', store.auth.userData?.userID);
+    
     try {
-      await apiClient.post<any>(url, { sender: chatId });
+      // Try with sender field first (using chat partner's ID)
+      const response = await apiClient.post<any>(url, { sender: chatId });
+      console.log('Mark-read response:', response);
     } catch (err) {
-      // Queue the request for retry with the correct body
-      await addToQueue({
-        id: uuid.v4() as string,
-        type: 'POST',
-        url,
-        data: { sender: chatId },
-        retries: 0,
-      });
+      console.error('Mark-read error with sender field:', err);
+      
+      try {
+        // Try with current user's ID as sender
+        const currentUserId = store.auth.userData?.userID;
+        if (currentUserId) {
+          const response = await apiClient.post<any>(url, { sender: currentUserId });
+          console.log('Mark-read response with current user ID:', response);
+        }
+      } catch (err2) {
+        console.error('Mark-read error with current user ID:', err2);
+        
+        try {
+          // Try with receiver field
+          const response = await apiClient.post<any>(url, { receiver: chatId });
+          console.log('Mark-read response with receiver:', response);
+        } catch (err3) {
+          console.error('Mark-read error with receiver field:', err3);
+          
+          // Queue the request for retry with the original sender field
+          await addToQueue({
+            id: uuid.v4() as string,
+            type: 'POST',
+            url,
+            data: { sender: chatId },
+            retries: 0,
+          });
+        }
+      }
     }
   };
 
@@ -83,12 +115,28 @@ const ChatListScreen = () => {
     <TouchableOpacity
       style={styles.itemContainer}
       onPress={() => {
+        console.log('Chat item clicked:', {
+          userId: item?.userId,
+          name: item?.name,
+          _id: item?._id
+        });
+        
         (navigation as any).navigate('ChatDetail', {
           chatId: item?.userId,
           receiverName: item?.name,
           receiverImage: item?.fileUrl
         });
-        markMessageAsRead(item?.userId); // Fire and forget
+        
+        // Only mark as read if there are unread messages and user is authenticated
+        if (item?.unseenCount > 0 && store.auth.userData?.userID) {
+          console.log('Marking as read for item:', {
+            userId: item?.userId,
+            _id: item?._id,
+            unseenCount: item?.unseenCount,
+            name: item?.name
+          });
+          // markMessageAsRead(item?.userId);
+        }
       }}
       activeOpacity={0.7}
     >

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { apiClient } from '../../../services/apiClient';
 import { Ionicons } from '@expo/vector-icons';
+import { ArrowRight, ChevronRight } from 'lucide-react-native';
 
 const ProfileCompletion = ({ onClose, onPress }: { onClose: () => void, onPress: () => void }) => {
   const [percent, setPercent] = useState<number | null>(null);
@@ -28,18 +29,22 @@ const ProfileCompletion = ({ onClose, onPress }: { onClose: () => void, onPress:
         <Ionicons name="close" size={20} color="#fff" />
       </TouchableOpacity>
       <TouchableOpacity style={styles.inner} onPress={onPress}>
-        <View style={styles.row}>
-          <Text style={styles.title}>Complete Profile</Text>
-          {loading ? (
-            <ActivityIndicator size="small" color="#222" />
-          ) : (
-            <Text style={styles.percent}>{percent ?? 0}% complete</Text>
-          )}
-          <Ionicons name="chevron-forward" size={20} color="#222" style={{ marginLeft: 8 }} />
+        <View style={{ flex: 1, flexDirection: 'column', paddingRight: 20 }}>
+          <View style={styles.row}>
+            <Text style={styles.title}>Complete Profile</Text>
+            {loading ? (
+              <ActivityIndicator size="small" color="#222" />
+            ) : (
+              <Text style={styles.percent}>{percent ?? 0}% complete</Text>
+            )}
+            
+          </View>
+          <View style={styles.progressBarBg}>
+            <View style={[styles.progressBar, { width: `${percent ?? 0}%` }]} />
+          </View>
         </View>
-        <View style={styles.progressBarBg}>
-          <View style={[styles.progressBar, { width: `${percent ?? 0}%` }]} />
-        </View>
+
+        <ChevronRight size={24} color="#222" />
       </TouchableOpacity>
     </View>
   );
@@ -50,17 +55,14 @@ const styles = StyleSheet.create({
     margin: 12,
     borderRadius: 12,
     backgroundColor: '#fff',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
+    borderWidth: 1,
+    borderColor: '#CBCBCB',
     position: 'relative',
   },
   closeBtn: {
     position: 'absolute',
-    top: 8,
-    right: 8,
+    top: -4,
+    right: -4,
     zIndex: 2,
     backgroundColor: '#111',
     borderRadius: 12,
@@ -71,22 +73,24 @@ const styles = StyleSheet.create({
   },
   inner: {
     padding: 16,
-    paddingRight: 32,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 14,
     justifyContent: 'space-between',
   },
   title: {
     fontWeight: 'bold',
-    fontSize: 16,
+    fontSize: 14,
     flex: 1,
   },
   percent: {
     color: '#222',
-    fontSize: 14,
+    fontSize: 12,
     marginLeft: 8,
   },
   progressBarBg: {

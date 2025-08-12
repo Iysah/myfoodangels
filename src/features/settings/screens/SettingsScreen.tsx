@@ -58,7 +58,9 @@ const SettingsScreen:FC<any> = observer(() => {
                         <View style={styles.section}>
                             <View style={[styles.row, { justifyContent: 'space-between'}]}>
                                 <View style={styles.profileWrapper}>
-                                    <Image source={require('../../../../assets/profile-icon.png')} style={styles.profileImg} />
+                                    <Image source={{
+                                        uri: userData?.profileImg || 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=facearea&w=256&h=256&facepad=2&q=80'
+                                    }} style={styles.profileImg} />
                                     <View>
                                         <Text style={styles.welcomeText}>
                                             {userData?.fullName}

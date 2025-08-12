@@ -15,6 +15,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { apiClient } from '../../../services/apiClient';
 import { observer } from 'mobx-react-lite';
 import { useToast } from '../../../../components/ui/toast'
+import { Input } from '../../../../components/ui/input';
 
 
 const CreateTrial:FC<any> = observer(({ navigation }) => {
@@ -25,7 +26,7 @@ const CreateTrial:FC<any> = observer(({ navigation }) => {
   const [startTime, setStartTime] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState(null);
   const [endTime, setEndTime] = useState<Date | null>(null);
-  const [deadline, setDeadline] = useState(null);
+  const [deadline, setDeadline] = useState<Date | null>(null);
   const [location, setLocation] = useState('');
   const [ageGroup, setAgeGroup] = useState('u18');
   const [skillLevel, setSkillLevel] = useState('');
@@ -294,16 +295,13 @@ const CreateTrial:FC<any> = observer(({ navigation }) => {
             {/* Location */}
             <Text style={styles.sectionTitle}>Location</Text>
             <Text style={styles.label}>Venue Name/Address</Text>
-            <View style={[styles.inputWithIcon, { borderRadius: 8, borderWidth: 1, borderColor: '#D1D1D1', minHeight: 40, paddingHorizontal: 12, }]}>
-              <MapPin size={18} color="#888" />
-              <TextInput
-                style={[styles.input, { flex: 1, borderWidth: 0, marginBottom: 0, backgroundColor: 'transparent', color: '#000000', fontSize: 16, }]}
-                placeholder="Enter venue name/address"
-                placeholderTextColor="#888888" // Hardcode for testing
-                value={location}
-                onChangeText={setLocation}
-              />
-            </View>
+            <Input
+              placeholder='Enter venue name/address'
+              icon={MapPin}
+              value={location}
+              onChangeText={setLocation}
+              variant='outline'
+            />
 
             <View style={styles.divider} />
 
@@ -471,16 +469,20 @@ const CreateTrial:FC<any> = observer(({ navigation }) => {
             )}
 
             <Text style={styles.label}>Maximum Attendance (Optional)</Text>
-            <View style={[styles.inputWithIcon, { borderRadius: 8, borderWidth: 1, borderColor: '#D1D1D1', minHeight: 40, paddingHorizontal: 12, }]}>
-              <Users size={18} color="#888" />
-              <TextInput
-                style={[styles.input, { flex: 1, borderWidth: 0, marginBottom: 0, color: theme.colors.text.primary }]}
-                placeholder="Enter maximum number of attendees"
-                placeholderTextColor="#888888"
-                value={maxAttendance}
-                onChangeText={setMaxAttendance}
-              />
-            </View>
+            {/* <Input
+              placeholder='Enter maximum number of attendees'
+              icon={Users}
+              value={maxAttendance}
+              onChangeText={setMaxAttendance}
+              variant='outline'
+            /> */}
+            <Input
+              placeholder='Enter maximum number of attendees'
+              icon={Users}
+              value={maxAttendance}
+              onChangeText={setMaxAttendance}
+              variant='outline'
+            />
 
             <SolidButton title={loading ? 'Creating...' : 'Create Event'} onPress={handleCreateEvent} isLoading={loading} />
           </View>

@@ -69,9 +69,9 @@ const VerifyEmail:FC<any> = ({ navigation, route }) => {
       )}
 
       <SolidButton 
-        title={store.auth.isLoading ? "Verify..." : "Verify  Email"} 
+        title={'Verify Email'}
         onPress={handleVerify}
-        // isLoading={isLoading || otp.join('').length !== 4}
+        isLoading={store.auth.isLoading}
       />
 
       <Text style={styles.resendText}>Didn't get the code? <Text style={GLOBALSTYLES.linkText} onPress={handleResend}>Click here to resend</Text></Text>
