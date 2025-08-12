@@ -75,7 +75,6 @@ const TalentSearchScreen:FC<any> = ({ navigation }) => {
         </View>
 
         <View style={styles.row}>
-          {/* <SearchBar onPress={handleSearch} placeholder= 'Search Athletes, Trials, or Events'  /> */}
           <SearchBar 
             onSearch={handleSearch}
             placeholder="Search for Scouts, Trials, filter results"

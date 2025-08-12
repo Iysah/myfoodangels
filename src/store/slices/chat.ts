@@ -65,6 +65,11 @@ export class ChatStore {
       this.isLoading = true;
       this.error = null;
       
+      // Check if user is authenticated
+      if (!this.rootStore.auth.token) {
+        throw new Error('User not authenticated');
+      }
+      
       const role = this.rootStore.auth.role?.toLowerCase();
       const endpoint = role === 'athlete' 
         ? `/general/message/athlete/history/${receiverId}`
@@ -135,6 +140,11 @@ export class ChatStore {
       this.isLoading = true;
       this.error = null;
       
+      // Check if user is authenticated
+      if (!this.rootStore.auth.token) {
+        throw new Error('User not authenticated');
+      }
+      
       const role = this.rootStore.auth.role?.toLowerCase();
       const endpoint = role === 'athlete' 
         ? '/general/message/athlete/send'
@@ -191,24 +201,6 @@ export class ChatStore {
       }
       
       return response;
-    } catch (error: any) {
-      this.error = error.message;
-      throw error;
-    } finally {
-      this.isLoading = false;
-    }
-  }
-
-  async markAsRead(conversationId: string) {
-    try {
-      this.isLoading = true;
-      this.error = null;
-      
-      await apiClient.put(`/chat/conversations/${conversationId}/read`);
-      const conversation = this.conversations.find(c => c.id === conversationId);
-      if (conversation) {
-        conversation.unreadCount = 0;
-      }
     } catch (error: any) {
       this.error = error.message;
       throw error;

@@ -1,5 +1,5 @@
 import React, { FC, useState } from 'react';
-import { View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, Alert, Pressable } from 'react-native';
 import { sportsData } from '../../../data/sports';
 import { Search, X } from 'lucide-react-native';
 import { spacing } from '../../../config/spacing';
@@ -7,6 +7,8 @@ import { theme } from '../../../config/theme';
 import { typography } from '../../../config/typography';
 import { store } from '../../../store/root';
 import { useToast } from '../../../../components/ui/toast';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import PageWrapper from '../../../components/wrapper';
 
 const SportsScreen:FC<any> = ({ navigation }) => {
   const [search, setSearch] = useState('');
@@ -45,49 +47,50 @@ const SportsScreen:FC<any> = ({ navigation }) => {
   }
 
   return (
+    <PageWrapper>
+      <View style={{ flex: 1, backgroundColor: '#fff', paddingVertical: 16 }}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <X size={32} color={theme.colors.text.primary} style={styles.backBtn} />
+        </TouchableOpacity>
 
-    <View style={{ flex: 1, backgroundColor: '#fff', padding: 16 }}>
-      <TouchableOpacity onPress={() => navigation.goBack()}>
-        <X size={32} color={theme.colors.text.primary} style={styles.backBtn} />
-      </TouchableOpacity>
-
-      <View style={styles.searchContainer}>
-        <Search size={18} color={'#000'} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search sports"
-          placeholderTextColor={'#000'}
-          value={search}
-          onChangeText={setSearch}
-        />
+        <View style={styles.searchContainer}>
+          <Search size={18} color={'#000'} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search sports"
+            placeholderTextColor={'#000'}
+            value={search}
+            onChangeText={setSearch}
+          />
+        </View>
+        <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
+          {filteredSports.map(sport => (
+            <TouchableOpacity
+              key={sport.value}
+              style={styles.row}
+              onPress={() => toggleSelect(sport.value)}
+            >
+              <Text style={styles.label}>{sport.label}</Text>
+              <View style={[
+                styles.checkbox,
+                selected.includes(sport.value) && styles.checkboxSelected
+              ]}>
+                {selected.includes(sport.value) && <View style={styles.checkmark} />}
+              </View>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+        <Pressable
+          style={[styles.doneBtn, store.scout.isLoading && styles.doneBtnDisabled]} 
+          onPress={handleAddSports}
+          disabled={store.scout.isLoading}
+        >
+          <Text style={styles.doneText}>
+            {store.scout.isLoading ? 'Adding Sports...' : 'Add Sports'}
+          </Text>
+        </Pressable>
       </View>
-      <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
-        {filteredSports.map(sport => (
-          <TouchableOpacity
-            key={sport.value}
-            style={styles.row}
-            onPress={() => toggleSelect(sport.value)}
-          >
-            <Text style={styles.label}>{sport.label}</Text>
-            <View style={[
-              styles.checkbox,
-              selected.includes(sport.value) && styles.checkboxSelected
-            ]}>
-              {selected.includes(sport.value) && <View style={styles.checkmark} />}
-            </View>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-      <TouchableOpacity 
-        style={[styles.doneBtn, store.scout.isLoading && styles.doneBtnDisabled]} 
-        onPress={handleAddSports}
-        disabled={store.scout.isLoading}
-      >
-        <Text style={styles.doneText}>
-          {store.scout.isLoading ? 'Adding Sports...' : 'Add Sports'}
-        </Text>
-      </TouchableOpacity>
-    </View>
+    </PageWrapper>
   );
 };
 

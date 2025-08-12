@@ -60,6 +60,13 @@ export class AuthStore implements AuthState {
       
       this.token = result.token;
       this.isAuthenticated = true;
+      
+      // Persist tokens to AsyncStorage
+      await AsyncStorage.setItem('authToken', result.token);
+      if (result.refreshToken) {
+        await AsyncStorage.setItem('refreshToken', result.refreshToken);
+      }
+      
       this.userData = {
         fullName: result?.user.name,
         email: result?.user.email,
@@ -86,6 +93,8 @@ export class AuthStore implements AuthState {
         sprint: statistic?.sprint || '0',
         vertical: statistic?.vertical || '0',
         agility: statistic?.agility || '0',
+        sports: result?.user?.sports || [],
+        lookFor: result?.user?.lookFor || [],
       };
     } catch (error: any) {
       if (error.response?.data?.error?.[0]?.message) {
@@ -210,6 +219,9 @@ export class AuthStore implements AuthState {
       this.token = result.token;
       this.user = result.user;
       // this.role = result.user.accountType;
+      
+      // Persist token to AsyncStorage
+      await AsyncStorage.setItem('authToken', result.token);
     } catch (error: any) {
       this.error = error.message;
       console.log(error)
@@ -331,7 +343,9 @@ export class AuthStore implements AuthState {
             about: userData.about || '',
             achievements: userData.achievement || [],
             experience: userData.experience || [],
-            education: userData.education || []
+            education: userData.education || [],
+            sports: userData.sports || [],
+            lookFor: userData.lookFor || [],
           };
         });
       }
@@ -383,7 +397,9 @@ export class AuthStore implements AuthState {
             about: currentUserData.about,
             achievements: [...(currentUserData.achievements || []), newAchievement],
             experience: currentUserData.experience || [],
-            education: currentUserData.education || []
+            education: currentUserData.education || [],
+            sports: currentUserData.sports || [],
+            lookFor: currentUserData.lookFor || [],
           };
         });
       }
@@ -593,11 +609,63 @@ export class AuthStore implements AuthState {
     }
   }
 
+  async initializeAuth() {
+    try {
+      const token = await AsyncStorage.getItem('authToken');
+      const refreshToken = await AsyncStorage.getItem('refreshToken');
+      const userRole = await AsyncStorage.getItem('userRole');
+      
+      if (token) {
+        this.token = token;
+        this.isAuthenticated = true;
+        this.role = userRole;
+        
+        // Verify token is still valid
+        try {
+          await this.verifyToken();
+        } catch (error) {
+          // Token is invalid, try to refresh
+          if (refreshToken) {
+            try {
+              await this.refreshToken();
+            } catch (refreshError) {
+              // If refresh fails, logout
+              await this.logout();
+            }
+          } else {
+            // No refresh token, logout
+            await this.logout();
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error initializing auth:', error);
+    }
+  }
+
+  async verifyToken() {
+    try {
+      // Make a simple API call to verify token
+      await apiClient.get('/auth/verify');
+    } catch (error: any) {
+      if (error.response?.status === 401) {
+        throw new Error('Token is invalid');
+      }
+      throw error;
+    }
+  }
+
   logout() {
     this.token = null;
     this.user = null;
     this.role = null;
     this.error = null;
+    this.isAuthenticated = false;
+    
+    // Clear stored tokens
+    AsyncStorage.removeItem('authToken');
+    AsyncStorage.removeItem('refreshToken');
+    AsyncStorage.removeItem('userRole');
   }
 
   async refreshToken() {
@@ -605,11 +673,23 @@ export class AuthStore implements AuthState {
       this.isLoading = true;
       this.error = null;
       
-      const response = await apiClient.post<any>('/auth/refresh');
+      // Check if we have a refresh token stored
+      const refreshToken = await AsyncStorage.getItem('refreshToken');
+      if (!refreshToken) {
+        throw new Error('No refresh token available');
+      }
+      
+      const response = await apiClient.post<any>('/auth/refresh', { refreshToken });
       
       this.token = response.token;
       this.user = response.user;
       this.role = response.user.role;
+      
+      // Persist tokens to AsyncStorage
+      await AsyncStorage.setItem('authToken', response.token);
+      if (response.refreshToken) {
+        await AsyncStorage.setItem('refreshToken', response.refreshToken);
+      }
     } catch (error: any) {
       this.error = error.message;
       throw error;

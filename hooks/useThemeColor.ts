@@ -3,7 +3,7 @@
  * https://docs.expo.dev/guides/color-schemes/
  */
 
-import { useColorScheme } from 'react-native';
+import { useColorScheme } from './useColorScheme.web';
 import { Colors } from '../theme/colors';
 
 export function useThemeColor(

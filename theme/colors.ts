@@ -108,7 +108,7 @@ const lightColors = {
     destructiveForeground: '#FFFFFF',
   
     // Border and input - using alpha values for better blending
-    border: '#38383A',
+    border: '#D1D1D1', 
     input: 'rgba(255, 255, 255, 0.15)',
     ring: '#71717a',
   

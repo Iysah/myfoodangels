@@ -14,6 +14,7 @@ import { observer } from 'mobx-react-lite'
 import AthleteCard from '../../scout/components/AthleteCard'
 import { formatDate } from '../../../utils/dateFormat'
 import { apiClient } from '../../../services/apiClient'
+import { useFocusEffect } from '@react-navigation/native'
 
 interface Performance {
   _id: string;
@@ -74,6 +75,20 @@ const ProfileScreen:FC<any> = observer(({ navigation }) => {
   useEffect(() => {
     fetchPerfomance()
   }, [])
+
+  useFocusEffect(
+    useCallback(() => {
+      loadProfile(); // fetch or refresh sports list
+    }, [])
+  );
+
+  const loadProfile = async () => {
+    try {
+      await store.athlete.fetchProfile();
+    } catch (error) {
+      console.error('Failed to fetch profile:', error);
+    }
+  };
 
   const handleEventPress = useCallback((videoId: string) => {
     navigation.navigate('PerformanceDetails', { videoId });

@@ -70,7 +70,7 @@ export function Toast({
   const contentOpacity = useRef(new Animated.Value(0)).current;
 
   // Dynamic Island colors (dark theme optimized)
-  const backgroundColor = '#1C1C1E '; // iOS Dynamic Island background
+  const backgroundColor = '#1C1C1E'; // iOS Dynamic Island background
   const mutedTextColor = '#8E8E93'; // iOS secondary text color
 
   useEffect(() => {
@@ -262,6 +262,8 @@ export function Toast({
     justifyContent: 'center' as const,
     alignItems: 'center' as const,
     overflow: 'hidden' as const,
+    // Ensure the background is solid
+    opacity: 1,
   };
 
   return (
@@ -282,6 +284,7 @@ export function Toast({
               width,
               height,
               borderRadius,
+              backgroundColor, // Explicitly set background color
             },
           ]}
         >
@@ -324,6 +327,8 @@ export function Toast({
                       fontWeight: '600',
                       marginBottom: description ? 2 : 0,
                     }}
+                    lightColor='#FFFFFF'
+                    darkColor='#FFFFFF'
                     numberOfLines={1}
                     ellipsizeMode='tail'
                   >
@@ -338,6 +343,8 @@ export function Toast({
                       fontSize: 13,
                       fontWeight: '400',
                     }}
+                    lightColor={mutedTextColor}
+                    darkColor={mutedTextColor}
                     numberOfLines={2}
                     ellipsizeMode='tail'
                   >
@@ -364,6 +371,8 @@ export function Toast({
                       fontSize: 12,
                       fontWeight: '600',
                     }}
+                    lightColor='#FFFFFF'
+                    darkColor='#FFFFFF'
                   >
                     {action.label}
                   </Text>

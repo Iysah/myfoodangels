@@ -25,6 +25,7 @@ import { store } from '../../../store/root';
 import { socketService } from '../../../services/socketService';
 import { formatTime } from '../../../utils/dateFormat';
 import { Message } from '../../../types/chat';
+import { useToast } from '../../../../components/ui/toast';
 
 interface ChatDetailScreenProps {
   navigation: any;
@@ -32,6 +33,7 @@ interface ChatDetailScreenProps {
 
 const ChatDetailScreen: FC<ChatDetailScreenProps> = observer(({ navigation }) => {
   const route = useRoute();
+  const { toast } = useToast();
   const { chatId, receiverName, receiverImage } = route.params as { 
     chatId: string; 
     receiverName?: string; 
@@ -84,7 +86,12 @@ const ChatDetailScreen: FC<ChatDetailScreenProps> = observer(({ navigation }) =>
       await store.chat.fetchChatHistory(chatId);
     } catch (error) {
       console.error('Failed to fetch chat history:', error);
-      Alert.alert('Error', 'Failed to load chat history');
+
+      toast({
+        title: 'Error',
+        description: 'Failed to load chat history',
+        variant: 'error',
+      });
     }
   };
 

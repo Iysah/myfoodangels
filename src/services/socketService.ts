@@ -44,6 +44,7 @@ class SocketService {
     });
 
     this.socket.on('receive_message', (data: MessageData) => {
+      console.log('Received message:', data);
       this.handleIncomingMessage(data);
     });
 
