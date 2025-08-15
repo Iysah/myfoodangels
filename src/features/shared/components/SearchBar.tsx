@@ -8,12 +8,14 @@ interface SearchBarProps {
   onPress?: () => void;
   onSearch?: (text: string) => void;
   placeholder?: string;
+  style?: object;
 }
 
 const SearchBar: React.FC<SearchBarProps> = ({ 
   onPress, 
   onSearch,
-  placeholder 
+  placeholder,
+  style
 }) => {
   const [searchText, setSearchText] = useState('');
 
@@ -32,7 +34,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
   }
 
   return (
-    <TouchableOpacity style={styles.searchWrapper} activeOpacity={1}>
+    <TouchableOpacity style={[styles.searchWrapper, style]} activeOpacity={1}>
       <Search color={'#000'} size={24} />
       <TextInput
         style={styles.input}
