@@ -99,7 +99,7 @@ const TalentSearchScreen:FC<any> = ({ navigation }) => {
         <View style={styles.row}>
           <SearchBar 
             onSearch={handleSearch}
-            placeholder="Search for Scouts, Trials, filter results"
+            placeholder="Search for Athlete, Trials, filter results"
             style={{ flex: 1 }}
           />
           <TouchableOpacity style={styles.iconWrapper} onPress={toggleFilter}>

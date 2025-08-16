@@ -200,7 +200,7 @@ const HomeScreen:FC<any> = observer(({ navigation }) => {
             ListHeaderComponent={
               <>
                 <View style={styles.wrapper}>
-                  <SearchBar onPress={() => navigation.navigate('SearchTalent')} placeholder='Search for athletes, filter results'  />
+                  <SearchBar onPress={() => navigation.navigate('SearchScout')} placeholder='Search for athletes, filter results'  />
                 </View>
 
                 {/* Profile completion status */}
