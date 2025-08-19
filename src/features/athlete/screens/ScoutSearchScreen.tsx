@@ -57,9 +57,9 @@ const ScoutSearchScreen:FC<any> = ({ navigation }) => {
           }
         });
         console.log('Search response:', response.data);
-        console.log('Search response - athletes:', response.data.athlete.athletes);
+        console.log('Search response - athletes:', response.data.scout.scouts);
   
-        setSearchResult(response?.data?.athlete?.athletes || []);
+        setSearchResult(response?.data?.scout?.scouts || []);
         setError(null);
       } catch (error: any) {
         console.error('Error searching events:', error);
@@ -99,7 +99,7 @@ const ScoutSearchScreen:FC<any> = ({ navigation }) => {
           {/* <SearchBar onPress={handleSearch} placeholder= 'Search Athletes, Trials, or Events'  /> */}
           <SearchBar 
             onSearch={handleSearch}
-            placeholder="Search for Talents, Perfomance, filter results"
+            placeholder="Search for Scouts, Talents, filter results"
           />
 
           <TouchableOpacity style={styles.iconWrapper} onPress={() => navigation.navigate('Notifications')}>
