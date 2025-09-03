@@ -134,7 +134,7 @@ const SettingsScreen:FC<any> = observer(() => {
                     
                     </View>
 
-                    <Text style={styles.version}>V 1.0.0</Text>
+                    <Text style={styles.version}>V 1.1.5</Text>
                 </View>
             </ScrollView>
             <CustomModal
