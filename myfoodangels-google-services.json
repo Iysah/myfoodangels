@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "588241135226",
+    "firebase_url": "https://mfa-1d165-default-rtdb.firebaseio.com",
+    "project_id": "mfa-1d165",
+    "storage_bucket": "mfa-1d165.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:588241135226:android:3012788ad68119b43cbdc3",
+        "android_client_info": {
+          "package_name": "com.mycompany.myfoodangels"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "588241135226-4h8n5iqmf6pe63ihh0l8ul3pqbpiq83e.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB7XA9pfvfGmqVUo2hUOLGj_5sf4mM88mg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "588241135226-4h8n5iqmf6pe63ihh0l8ul3pqbpiq83e.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "588241135226-0oamkohhhhnhta3iigria2l96uudn804.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.mycompany.myfoodangels"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
