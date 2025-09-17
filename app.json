@@ -1,49 +1,34 @@
 {
   "expo": {
-    "name": "Confluenxe",
-    "slug": "confluenx-app",
+    "name": "MyFoodAngels",
+    "slug": "myfoodangels",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/app-icon.png",
+    "icon": "./assets/mfa-icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/app-icon.png",
-      "resizeMode": "cover",
-      "backgroundColor": "#000080"
+      "image": "./assets/mfa-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.theproductdude.confluenxapp"
+      "bundleIdentifier": "com.theproductdude.myfoodangels"
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/app-icon.png",
+        "foregroundImage": "./assets/mfa-icon.png",
         "backgroundColor": "#000080"
       },
-      "package": "com.theproductdude.confluenxapp",
+      "package": "com.theproductdude.myfoodangels",
       "edgeToEdgeEnabled": true
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      [
-        "expo-video",
-        {
-          "supportsBackgroundPlayback": true,
-          "supportsPictureInPicture": true
-        }
-      ],
       "expo-font",
-      [
-        "expo-splash-screen",
-        {
-          "image": "./assets/app-icon.png",
-          "resizeMode": "contain",
-          "backgroundColor": "#000080"
-        }
-      ],
       [
         "expo-image-picker",
         {
