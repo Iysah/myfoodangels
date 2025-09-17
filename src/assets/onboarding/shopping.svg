@@ -1,0 +1,19 @@
+<svg width="400" height="300" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="400" height="300" fill="#f8f9fa" />
+  
+  <!-- Shopping cart -->
+  <circle cx="200" cy="150" r="100" fill="#e9ecef" />
+  <path d="M150,180 L250,180 L270,120 L130,120 Z" fill="#FF6B6B" stroke="#343a40" stroke-width="3" />
+  <path d="M160,120 L160,90 C160,70 180,60 200,60 C220,60 240,70 240,90 L240,120" stroke="#343a40" stroke-width="3" fill="none" />
+  <circle cx="170" cy="200" r="10" fill="#343a40" />
+  <circle cx="230" cy="200" r="10" fill="#343a40" />
+  
+  <!-- Food items -->
+  <circle cx="200" cy="140" r="15" fill="#ffd166" /> <!-- Fruit -->
+  <rect x="175" y="130" width="10" height="20" fill="#06d6a0" /> <!-- Vegetable -->
+  <rect x="215" y="130" width="15" height="15" fill="#118ab2" /> <!-- Package -->
+  
+  <!-- Text -->
+  <text x="200" y="240" font-family="Arial" font-size="16" text-anchor="middle" fill="#343a40">Shopping</text>
+</svg>
