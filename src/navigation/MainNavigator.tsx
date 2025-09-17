@@ -10,6 +10,7 @@ import TrackOrdersScreen from '../screens/TrackOrders/TrackOrdersScreen';
 import ProfileScreen from '../screens/Profile/ProfileScreen';
 import { MainTabParamList } from './types';
 import { Colors } from '../styles/globalStyles';
+import { Eye, House, Truck, UserRound } from 'lucide-react-native';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
@@ -26,7 +27,7 @@ const MainNavigator = observer(() => {
           borderTopWidth: 1,
           paddingTop: 8,
           paddingBottom: 8,
-          height: 60,
+          height: 90,
         },
         tabBarLabelStyle: {
           fontSize: 12,
@@ -39,7 +40,7 @@ const MainNavigator = observer(() => {
         component={HomeScreen}
         options={{
           tabBarIcon: ({ color, size }: { color: string; size: number }) => (
-            <Text style={{ color, fontSize: size }}>🏠</Text>
+            <House size={22} color={Colors.primary}/>
           ),
         }}
       />
@@ -48,7 +49,7 @@ const MainNavigator = observer(() => {
         component={ViewedScreen}
         options={{
           tabBarIcon: ({ color, size }: { color: string; size: number }) => (
-            <Text style={{ color, fontSize: size }}>👁️</Text>
+            <Eye size={22} color={Colors.primary} />
           ),
         }}
       />
@@ -58,7 +59,7 @@ const MainNavigator = observer(() => {
         options={{
           tabBarLabel: 'Orders',
           tabBarIcon: ({ color, size }: { color: string; size: number }) => (
-            <Text style={{ color, fontSize: size }}>📦</Text>
+            <Truck size={22} color={Colors.primary} />
           ),
         }}
       />
@@ -67,7 +68,7 @@ const MainNavigator = observer(() => {
         component={ProfileScreen}
         options={{
           tabBarIcon: ({ color, size }: { color: string; size: number }) => (
-            <Text style={{ color, fontSize: size }}>👤</Text>
+            <UserRound size={22} color={Colors.primary} />
           ),
         }}
       />
