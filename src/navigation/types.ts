@@ -1,34 +1,44 @@
-export type RootStackParamList = {
-  // Auth Stack
-  Auth: undefined;
-  Login: undefined;
-  Signup: undefined;
-  RoleSelection: undefined;
-  ForgetPassword: undefined;
-  VerifyEmail: undefined;
-  CreatePassword: undefined;
+import { NavigatorScreenParams } from '@react-navigation/native';
 
-  // Onboarding Stack
+// Auth Navigator Param List
+export type AuthStackParamList = {
   Onboarding: undefined;
-  Welcome: undefined;
-  SelectRole: undefined;
-
-  // Main App Stack
-  AthleteTabs: undefined;
-  ScoutTabs: undefined;
-  SearchTalent: undefined;
-  TalentDetails: { talentId: string };
-  Chats: undefined;
-  ChatDetail: { chatId: string; receiverName?: string; receiverImage?: string };
-  EventDetails: { eventId: string };
+  Login: undefined;
   Register: undefined;
-  Notifications: undefined;
+  ForgotPassword: undefined;
+  PhoneLogin: undefined;
+};
 
-  // Settings Stack
+// Main Tab Navigator Param List
+export type MainTabParamList = {
+  Home: undefined;
+  Viewed: undefined;
+  TrackOrders: undefined;
+  Profile: undefined;
+};
+
+// Root Navigator Param List
+export type RootStackParamList = {
+  Auth: NavigatorScreenParams<AuthStackParamList>;
+  Main: NavigatorScreenParams<MainTabParamList>;
+  ProductDetails: { productId: string };
+  Cart: undefined;
+  Checkout: undefined;
+  OrderConfirmation: { orderId: string };
+  OrderDetails: { orderId: string };
+  EditProfile: undefined;
+  Wallet: undefined;
+  AddCard: undefined;
+  TopUp: undefined;
   Settings: undefined;
-  ProfileSettings: undefined;
-  AccountSettings: undefined;
-  PrivacyPolicy: undefined;
-  Terms: undefined;
-  Help: undefined;
-}; 
+  Notifications: undefined;
+  Reviews: { productId: string };
+  MakeOffer: { productId: string };
+};
+
+// Navigation Types
+declare global {
+  namespace ReactNavigation {
+    interface RootParamList extends RootStackParamList {}
+  }
+}

@@ -1,0 +1,35 @@
+<svg width="400" height="300" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="400" height="300" fill="#f8f9fa" />
+  
+  <!-- Circular background -->
+  <circle cx="200" cy="150" r="100" fill="#e9ecef" />
+  
+  <!-- Delivery truck -->
+  <rect x="100" y="150" width="150" height="60" fill="#FF6B6B" rx="5" ry="5" />
+  <rect x="250" y="150" width="50" height="40" fill="#FF6B6B" rx="5" ry="5" />
+  <rect x="100" y="150" width="150" height="20" fill="#ff8c94" rx="5" ry="5" />
+  <rect x="120" y="130" width="80" height="20" fill="#343a40" rx="5" ry="5" />
+  
+  <!-- Wheels -->
+  <circle cx="140" cy="210" r="15" fill="#343a40" />
+  <circle cx="140" cy="210" r="5" fill="#6c757d" />
+  <circle cx="260" cy="210" r="15" fill="#343a40" />
+  <circle cx="260" cy="210" r="5" fill="#6c757d" />
+  
+  <!-- Road -->
+  <rect x="50" y="225" width="300" height="5" fill="#6c757d" />
+  <rect x="70" y="225" width="20" height="5" fill="#f8f9fa" />
+  <rect x="120" y="225" width="20" height="5" fill="#f8f9fa" />
+  <rect x="170" y="225" width="20" height="5" fill="#f8f9fa" />
+  <rect x="220" y="225" width="20" height="5" fill="#f8f9fa" />
+  <rect x="270" y="225" width="20" height="5" fill="#f8f9fa" />
+  <rect x="320" y="225" width="20" height="5" fill="#f8f9fa" />
+  
+  <!-- Location pin -->
+  <path d="M300,120 L310,140 L290,140 Z" fill="#FF6B6B" />
+  <circle cx="300" cy="110" r="15" fill="#FF6B6B" />
+  
+  <!-- Text -->
+  <text x="200" y="260" font-family="Arial" font-size="16" text-anchor="middle" fill="#343a40">Delivery</text>
+</svg>
