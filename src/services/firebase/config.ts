@@ -1,20 +1,58 @@
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
-// Firebase configuration
-const firebaseConfig = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || "demo-api-key",
-  authDomain: "mfa-1d165.firebaseapp.com",
-  projectId: "mfa-1d165",
-  storageBucket: "mfa-1d165.appspot.com",
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "123456789",
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || "1:123456789:web:demo-app-id",
+// Validate required environment variables
+const requiredEnvVars = {
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// Check for missing environment variables
+const missingVars = Object.entries(requiredEnvVars)
+  .filter(([key, value]) => !value)
+  .map(([key]) => key);
+
+if (missingVars.length > 0) {
+  console.warn('Missing Firebase environment variables:', missingVars);
+}
+
+// Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyAI7ZmwJPhhtBUFEhxu9D8lOPsxKoySO2k",
+  authDomain: "mfa-1d165.firebaseapp.com",
+  databaseURL: "https://mfa-1d165-default-rtdb.firebaseio.com",
+  projectId: "mfa-1d165",
+  storageBucket: "mfa-1d165.appspot.com",
+  messagingSenderId: "588241135226",
+  appId: "1:588241135226:web:5c5e36b6c6e4c8663cbdc3",
+  measurementId: "G-SF0CRLLTDR"
+};
+
+console.log('Firebase Config:', {
+  apiKey: firebaseConfig.apiKey ? `${firebaseConfig.apiKey.substring(0, 10)}...` : 'NOT SET',
+  authDomain: firebaseConfig.authDomain,
+  projectId: firebaseConfig.projectId,
+  messagingSenderId: firebaseConfig.messagingSenderId,
+  appId: firebaseConfig.appId ? `${firebaseConfig.appId.substring(0, 20)}...` : 'NOT SET'
+});
+
+// Initialize Firebase - check if app already exists to prevent duplicate initialization
+let app;
+try {
+  app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+  console.log('Firebase initialized successfully');
+} catch (error) {
+  console.error('Firebase initialization error:', error);
+  console.error('This error often occurs when:');
+  console.error('1. The API key is invalid or doesn\'t match the project');
+  console.error('2. The project ID is incorrect');
+  console.error('3. The Firebase project doesn\'t exist or is misconfigured');
+  console.error('Please check your Firebase project settings and update the .env file');
+  throw error;
+}
 
 // Initialize Firebase services
 export const auth = getAuth(app);

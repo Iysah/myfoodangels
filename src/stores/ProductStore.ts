@@ -1,15 +1,24 @@
 import { makeAutoObservable, runInAction } from 'mobx';
-import { Product, FilterOptions, Review, Offer } from '../types';
+import { Product, FilterOptions, Review, Offer, Category } from '../types';
 import * as FirestoreService from '../services/firebase/firestore';
+import { LoystarAPI, LoystarProduct, LoystarProductsResponse } from '../services/loystar';
 
 class ProductStore {
   products: Product[] = [];
   featuredProducts: Product[] = [];
   recentlyViewedProducts: Product[] = [];
+  categories: Category[] = [];
   currentProduct: Product | null = null;
   isLoading: boolean = false;
+  categoriesLoading: boolean = false;
   error: string | null = null;
   filters: FilterOptions = {};
+  
+  // Loystar Farm Offtake products
+  farmOfftakeProducts: LoystarProduct[] = [];
+  farmOfftakeLoading: boolean = false;
+  farmOfftakeError: string | null = null;
+  farmOfftakeMeta: any = null;
 
   constructor() {
     makeAutoObservable(this);
@@ -95,10 +104,9 @@ class ProductStore {
     this.isLoading = true;
     this.error = null;
     try {
+      // Simple query to get first 10 products
       const constraints = [
-        FirestoreService.createWhereConstraint('isFeatured', '==', true),
-        FirestoreService.createOrderByConstraint('createdAt', 'desc'),
-        FirestoreService.createLimitConstraint(10)
+        FirestoreService.createLimitConstraint(10),
       ];
       
       const featuredProducts = await FirestoreService.queryDocuments<Product>('products', constraints);
@@ -114,6 +122,35 @@ class ProductStore {
         this.error = error.message;
         this.isLoading = false;
       });
+      console.error('Error fetching featured products:', error);
+      throw error;
+    }
+  };
+
+  // Fetch categories
+  fetchCategories = async () => {
+    this.categoriesLoading = true;
+    this.error = null;
+    try {
+      // Simple query to get all categories
+      const constraints = [
+        FirestoreService.createLimitConstraint(20)
+      ];
+      
+      const categories = await FirestoreService.queryDocuments<Category>('categories', constraints);
+      
+      runInAction(() => {
+        this.categories = categories;
+        this.categoriesLoading = false;
+      });
+      
+      return categories;
+    } catch (error: any) {
+      runInAction(() => {
+        this.error = error.message;
+        this.categoriesLoading = false;
+      });
+      console.error('Error fetching categories:', error);
       throw error;
     }
   };
@@ -267,6 +304,40 @@ class ProductStore {
       runInAction(() => {
         this.error = error.message;
         this.isLoading = false;
+      });
+      throw error;
+    }
+  };
+
+  // Fetch Farm Offtake products from Loystar
+  fetchFarmOfftakeProducts = async (page: number = 1, pageSize: number = 6) => {
+    this.farmOfftakeLoading = true;
+    this.farmOfftakeError = null;
+    
+    try {
+      console.log('Fetching Farm Offtake products from Loystar...');
+      const response: LoystarProductsResponse = await LoystarAPI.fetchFarmOfftakeProducts(page, pageSize);
+      
+      runInAction(() => {
+        if (page === 1) {
+          // First page - replace products
+          this.farmOfftakeProducts = response.data;
+        } else {
+          // Additional pages - append products
+          this.farmOfftakeProducts = [...this.farmOfftakeProducts, ...response.data];
+        }
+        this.farmOfftakeMeta = response.meta;
+        this.farmOfftakeLoading = false;
+        this.farmOfftakeError = null;
+      });
+      
+      console.log('Farm Offtake products fetched successfully:', response.data.length, 'products');
+      return response;
+    } catch (error: any) {
+      console.error('Error fetching Farm Offtake products:', error);
+      runInAction(() => {
+        this.farmOfftakeError = error.message || 'Failed to fetch Farm Offtake products';
+        this.farmOfftakeLoading = false;
       });
       throw error;
     }

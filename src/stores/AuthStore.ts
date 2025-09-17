@@ -3,6 +3,7 @@ import { User } from '../types';
 import * as AuthService from '../services/firebase/auth';
 import { auth } from '../services/firebase/config';
 import { User as FirebaseUser } from 'firebase/auth';
+import { LoystarAPI, LoystarAuthResponse } from '../services/loystar';
 
 class AuthStore {
   user: User | null = null;
@@ -10,6 +11,8 @@ class AuthStore {
   error: string | null = null;
   isAuthenticated: boolean = false;
   isGuest: boolean = false;
+  loystarData: LoystarAuthResponse | null = null;
+  loystarToken: string | null = null;
 
   constructor() {
     makeAutoObservable(this);
@@ -66,12 +69,37 @@ class AuthStore {
     this.isLoading = true;
     this.error = null;
     try {
+      console.log('Starting login process for:', email);
+      
+      // First, authenticate with Firebase
       const user = await AuthService.loginWithEmail(email, password);
-      runInAction(() => {
-        this.isLoading = false;
-      });
+      console.log('Firebase login successful:', user);
+      
+      // Then, authenticate with Loystar using the email
+      try {
+        console.log('Attempting Loystar authentication...');
+        const loystarResponse = await LoystarAPI.loginWithEmail(email);
+        
+        runInAction(() => {
+          this.loystarData = loystarResponse;
+          this.loystarToken = loystarResponse.token;
+          this.isLoading = false;
+        });
+        
+        console.log('Loystar authentication successful:', loystarResponse);
+        console.log('Loystar token saved:', loystarResponse.token);
+        
+      } catch (loystarError: any) {
+        console.warn('Loystar authentication failed, but Firebase login succeeded:', loystarError.message);
+        // Don't fail the entire login if Loystar fails
+        runInAction(() => {
+          this.isLoading = false;
+        });
+      }
+      
       return user;
     } catch (error: any) {
+      console.error('Login failed:', error);
       runInAction(() => {
         this.error = error.message;
         this.isLoading = false;
@@ -142,8 +170,12 @@ class AuthStore {
       runInAction(() => {
         this.user = null;
         this.isAuthenticated = false;
+        this.loystarData = null;
+        this.loystarToken = null;
         this.isLoading = false;
       });
+      // Clear Loystar token from the API class as well
+      LoystarAPI.setAuthToken('');
     } catch (error: any) {
       runInAction(() => {
         this.error = error.message;
@@ -151,6 +183,21 @@ class AuthStore {
       });
       throw error;
     }
+  };
+
+  // Method to get Loystar token for API calls
+  getLoystarToken = (): string | null => {
+    return this.loystarToken;
+  };
+
+  // Method to get Loystar customer data
+  getLoystarCustomer = () => {
+    return this.loystarData?.customer || null;
+  };
+
+  // Method to get Loystar user data
+  getLoystarUser = () => {
+    return this.loystarData?.user || null;
   };
 
   resetPassword = async (email: string) => {

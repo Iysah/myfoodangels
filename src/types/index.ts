@@ -1,6 +1,7 @@
 // Export all data models
 export * from './User';
 export * from './Product';
+export * from './Category';
 export * from './Order';
 export * from './Wallet';
 

@@ -19,8 +19,21 @@ export const registerWithEmail = async (email: string, password: string) => {
   try {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     return userCredential.user;
-  } catch (error) {
-    throw error;
+  } catch (error: any) {
+    console.error('Firebase Auth Registration Error:', error);
+    
+    // Handle specific Firebase auth errors
+    if (error.code === 'auth/api-key-not-valid') {
+      throw new Error('Firebase API key is invalid. Please check your Firebase project configuration.');
+    } else if (error.code === 'auth/email-already-in-use') {
+      throw new Error('An account with this email address already exists.');
+    } else if (error.code === 'auth/invalid-email') {
+      throw new Error('Invalid email address.');
+    } else if (error.code === 'auth/weak-password') {
+      throw new Error('Password is too weak. Please choose a stronger password.');
+    } else {
+      throw new Error(error.message || 'Registration failed. Please try again.');
+    }
   }
 };
 
@@ -28,8 +41,25 @@ export const loginWithEmail = async (email: string, password: string) => {
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     return userCredential.user;
-  } catch (error) {
-    throw error;
+  } catch (error: any) {
+    console.error('Firebase Auth Error:', error);
+    
+    // Handle specific Firebase auth errors
+    if (error.code === 'auth/api-key-not-valid') {
+      throw new Error('Firebase API key is invalid. Please check your Firebase project configuration.');
+    } else if (error.code === 'auth/invalid-email') {
+      throw new Error('Invalid email address.');
+    } else if (error.code === 'auth/user-disabled') {
+      throw new Error('This user account has been disabled.');
+    } else if (error.code === 'auth/user-not-found') {
+      throw new Error('No user found with this email address.');
+    } else if (error.code === 'auth/wrong-password') {
+      throw new Error('Incorrect password.');
+    } else if (error.code === 'auth/too-many-requests') {
+      throw new Error('Too many failed login attempts. Please try again later.');
+    } else {
+      throw new Error(error.message || 'Login failed. Please try again.');
+    }
   }
 };
 
