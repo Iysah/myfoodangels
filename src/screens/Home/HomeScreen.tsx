@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -14,11 +14,19 @@ import { useNavigation } from '@react-navigation/native';
 import { Colors, GlobalStyles, Spacing, Typography } from '../../styles/globalStyles';
 import { useStores } from '../../contexts/StoreContext';
 import { Category } from '../../types';
-import {Bell, Heart, ShoppingCart } from 'lucide-react-native'
+import {Bell, Heart, ShoppingCart, Search } from 'lucide-react-native'
+import LogoIcon from '../../../assets/icons/logo';
+import { 
+  AppConfig, 
+  listenToAppConfig, 
+  shouldShowFarmOfftake, 
+  shouldShowFlashSales 
+} from '../../services/firebase/appConfig';
 
 const HomeScreen = observer(() => {
   const navigation = useNavigation();
-  const { authStore, productStore } = useStores();
+  const { authStore, productStore, cartStore } = useStores();
+  const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -55,19 +63,31 @@ const HomeScreen = observer(() => {
     loadData();
   }, [productStore, authStore.loystarToken]);
 
+  // Listen to Firebase app configuration changes
+  useEffect(() => {
+    const unsubscribe = listenToAppConfig((config) => {
+      console.log('App config updated:', config);
+      setAppConfig(config);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   const handleProductPress = (productId: string) => {
     // Navigate to product details
     navigation.navigate('ProductDetails', { productId });
   };
 
   const handleCartPress = () => {
-    // Check if user is authenticated for cart access
-    if (authStore.requiresAuthentication()) {
-      // Show authentication prompt
-      navigation.navigate('Auth', { screen: 'Login' });
-      return;
-    }
     navigation.navigate('Cart');
+  };
+
+  const handleLikePress = () => {
+    navigation.navigate('Likes');
+  };
+
+  const handleNotificationPress = () => {
+    navigation.navigate('Notifications');
   };
 
   const renderProduct = ({ item }: { item: any }) => (
@@ -121,9 +141,14 @@ const HomeScreen = observer(() => {
     <TouchableOpacity
       style={styles.categoryCard}
       onPress={() => {
-        // Navigate to categories page or filter products by category
-        // For now, we'll filter products by category
-        productStore?.fetchProducts({ category: item.name });
+        navigation.navigate('Products', {
+          category: {
+            id: item.id,
+            name: item.name,
+            loystarId: item.loystarId || 0,
+            image: item.image,
+          }
+        });
       }}
     >
       <Image source={{ uri: item.image }} style={styles.categoryImage} />
@@ -141,23 +166,32 @@ const HomeScreen = observer(() => {
     error?: string | null;
   }
 
-  const renderSectionHeader = ({ section }: { section: SectionData }) => (
-    <View style={styles.sectionHeader}>
-      <Text style={styles.sectionTitle}>{section.title}</Text>
-      {section.showViewAll && (
-        <TouchableOpacity onPress={() => {
-          console.log(`Navigate to ${section.title}`);
-        }}>
+  const renderSectionHeader = ({ section }: { section: SectionData }) => {
+    if (!section.showViewAll) return null;
+    
+    const handleViewAllPress = () => {
+      if (section.title === 'Categories') {
+        navigation.navigate('Categories' as never);
+      } else {
+        console.log('View all pressed for:', section.title);
+      }
+    };
+    
+    return (
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>{section.title}</Text>
+        <TouchableOpacity onPress={handleViewAllPress}>
           <Text style={styles.viewAllButton}>View All</Text>
         </TouchableOpacity>
-      )}
-    </View>
-  );
+      </View>
+    );
+  };
 
   const renderSectionItem = ({ item, section }: { item: any; section: SectionData }) => {
     if (section.type === 'categories') {
       return (
         <FlatList
+          key={`categories-${appConfig ? 'with-config' : 'no-config'}`}
           data={item}
           renderItem={renderCategory}
           keyExtractor={(category: Category) => category.id}
@@ -172,6 +206,7 @@ const HomeScreen = observer(() => {
       
       return (
         <FlatList
+          key={`horizontal-${section.title}-${appConfig ? 'with-config' : 'no-config'}`}
           data={item}
           renderItem={renderFunction}
           keyExtractor={(product: any) => product.id.toString()}
@@ -193,6 +228,7 @@ const HomeScreen = observer(() => {
       
       return (
         <FlatList
+          key={`grid-${section.title}-${appConfig ? 'with-config' : 'no-config'}`}
           data={item}
           renderItem={renderFunction}
           keyExtractor={(product: any) => product.id.toString()}
@@ -205,74 +241,114 @@ const HomeScreen = observer(() => {
     return null;
   };
 
-  const sections: SectionData[] = [
-    {
-      title: 'Categories',
-      data: [productStore?.categories.slice(0, 6) || []],
-      type: 'categories',
-      showViewAll: true,
-    },
-    {
-      title: 'Featured Products',
-      data: [productStore?.featuredProducts || []],
-      type: 'horizontal',
-      showViewAll: false,
-    },
-    {
-      title: 'Farm Offtake',
-      data: [productStore?.farmOfftakeProducts || []],
-      type: 'horizontal',
-      showViewAll: true,
-      emptyMessage: authStore.loystarToken ? 'No farm offtake products available' : 'Please login to view farm offtake products',
-      isLoading: productStore?.farmOfftakeLoading,
-      error: productStore?.farmOfftakeError,
-    },
-    {
-      title: 'Flash Sales',
-      data: [[]],
-      type: 'horizontal',
-      showViewAll: true,
-      emptyMessage: 'Flash sales coming soon!',
-    },
-    {
-      title: 'Subscription Packages',
-      data: [[]],
-      type: 'horizontal',
-      showViewAll: true,
-      emptyMessage: 'Subscription packages coming soon!',
-    },
-    {
-      title: 'All Products',
-      data: [productStore?.products || []],
-      type: 'grid',
-      showViewAll: false,
-    },
-  ];
+  // Create sections array with Firebase configuration-based visibility
+  const sections = useMemo((): SectionData[] => {
+    const baseSections: SectionData[] = [
+      {
+        title: 'Categories',
+        data: [productStore?.categories.slice(0, 6) || []],
+        type: 'categories',
+        showViewAll: true,
+      },
+    ];
+
+    // Add Farm Offtake section if enabled by Firebase config
+    if (appConfig && shouldShowFarmOfftake(appConfig)) {
+      baseSections.push({
+        title: 'Farm Offtake',
+        data: [productStore?.farmOfftakeProducts || []],
+        type: 'horizontal',
+        showViewAll: true,
+        emptyMessage: authStore.loystarToken ? 'No farm offtake products available' : 'Please login to view farm offtake products',
+        isLoading: productStore?.farmOfftakeLoading,
+        error: productStore?.farmOfftakeError,
+      });
+    }
+
+    // Add Flash Sales section if enabled by Firebase config
+    if (appConfig && shouldShowFlashSales(appConfig)) {
+      baseSections.push({
+        title: 'Flash Sales',
+        data: [[]],
+        type: 'horizontal',
+        showViewAll: true,
+        emptyMessage: 'Flash sales coming soon!',
+      });
+    }
+
+    // Always show these sections
+    baseSections.push(
+      {
+        title: 'Subscription Packages',
+        data: [[]],
+        type: 'horizontal',
+        showViewAll: true,
+        emptyMessage: 'Subscription packages coming soon!',
+      },
+      {
+        title: 'All Products',
+        data: [productStore?.products || []],
+        type: 'grid',
+        showViewAll: false,
+      }
+    );
+
+    return baseSections;
+  }, [
+    appConfig,
+    productStore?.categories,
+    productStore?.farmOfftakeProducts,
+    productStore?.products,
+    productStore?.farmOfftakeLoading,
+    productStore?.farmOfftakeError,
+    authStore.loystarToken,
+  ]);
 
   return (
     <SafeAreaView style={[GlobalStyles.safeArea, styles.container]}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>MyFoodAngels</Text>
+        <View>
+          <LogoIcon />
+        </View>
 
         <View style={styles.rowContainer}>
           <TouchableOpacity style={styles.cartButton} onPress={handleCartPress}>
-            <ShoppingCart size={18} color={'#000'}/>
+            <View style={styles.cartIconContainer}>
+              <ShoppingCart size={22} color={'#000'}/>
+              {cartStore.itemCount > 0 && (
+                <View style={styles.cartBadge}>
+                  <Text style={styles.cartBadgeText}>
+                    {cartStore.itemCount > 99 ? '99+' : cartStore.itemCount}
+                  </Text>
+                </View>
+              )}
+            </View>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.cartButton}>
-            <Heart size={18} color={'#000'}/>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.cartButton}>
-            <Bell size={18} color={'#000'}/>
+
+          <TouchableOpacity style={styles.cartButton} onPress={handleNotificationPress}>
+            <Bell size={22} color={'#000'}/>
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Search Bar */}
+      <TouchableOpacity 
+        style={styles.searchBar}
+        onPress={() => navigation.navigate('Search')}
+        activeOpacity={0.7}
+      >
+        <Search size={20} color={Colors.textSecondary} />
+        <Text style={styles.searchPlaceholder}>I'm looking for...</Text>
+      </TouchableOpacity>
 
       <SectionList
         sections={sections}
         renderSectionHeader={renderSectionHeader}
         renderItem={renderSectionItem}
-        keyExtractor={(item, index) => `section-${index}`}
+        keyExtractor={(item, index) => `item-${index}`}
+        stickySectionHeadersEnabled={false}
         style={styles.content}
+        extraData={appConfig}
         ListHeaderComponent={
           !authStore.isAuthenticated && !authStore.isGuest ? (
             <View style={styles.guestBanner}>
@@ -284,12 +360,11 @@ const HomeScreen = observer(() => {
                 >
                   sign in
                 </Text>{' '}
-                for full access
+                for full access.
               </Text>
             </View>
           ) : null
         }
-        stickySectionHeadersEnabled={false}
       />
     </SafeAreaView>
   );
@@ -306,12 +381,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    // borderBottomWidth: 1,
+    // borderBottomColor: Colors.border,
   },
   headerTitle: {
     fontSize: Typography.fontSize.xl,
     fontFamily: Typography.fontFamily.bold,
+    fontWeight: '600',
     color: Colors.label,
   },
   rowContainer: {
@@ -326,6 +402,44 @@ const styles = StyleSheet.create({
   cartIcon: {
     color: '#000'
   },
+  cartIconContainer: {
+    position: 'relative',
+  },
+  cartBadge: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: Colors.primary,
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cartBadgeText: {
+    color: Colors.white,
+    fontSize: Typography.fontSize.xs,
+    fontFamily: Typography.fontFamily.bold,
+    fontWeight: '600',
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.white,
+    marginHorizontal: Spacing.md,
+    marginVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  searchPlaceholder: {
+    marginLeft: Spacing.sm,
+    fontSize: Typography.fontSize.sm,
+    color: Colors.textSecondary,
+    flex: 1,
+  },
   content: {
     flex: 1,
   },
@@ -338,7 +452,7 @@ const styles = StyleSheet.create({
   guestText: {
     fontSize: Typography.fontSize.sm,
     color: Colors.label,
-    textAlign: 'center',
+    textAlign: 'left',
   },
   loginLink: {
     color: Colors.primary,
@@ -364,11 +478,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginRight: Spacing.sm,
     marginBottom: Spacing.sm,
-    // shadowColor: Colors.label,
-    // shadowOffset: { width: 0, height: 2 },
-    // shadowOpacity: 0.1,
-    // shadowRadius: 4,
-    // elevation: 3,
     width: 150,
   },
   productImage: {
@@ -414,6 +523,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: Spacing.md,
     marginBottom: Spacing.sm,
+    marginTop: Spacing.md
   },
   viewAllButton: {
     fontSize: Typography.fontSize.sm,

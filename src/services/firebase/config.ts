@@ -8,6 +8,7 @@ const requiredEnvVars = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
   messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
+
 };
 
 // Check for missing environment variables
@@ -21,14 +22,12 @@ if (missingVars.length > 0) {
 
 // Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyAI7ZmwJPhhtBUFEhxu9D8lOPsxKoySO2k",
-  authDomain: "mfa-1d165.firebaseapp.com",
-  databaseURL: "https://mfa-1d165-default-rtdb.firebaseio.com",
-  projectId: "mfa-1d165",
-  storageBucket: "mfa-1d165.appspot.com",
-  messagingSenderId: "588241135226",
-  appId: "1:588241135226:web:5c5e36b6c6e4c8663cbdc3",
-  measurementId: "G-SF0CRLLTDR"
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID
 };
 
 console.log('Firebase Config:', {

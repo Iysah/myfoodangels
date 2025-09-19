@@ -7,16 +7,18 @@ import {
   TouchableOpacity,
   RefreshControl,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { observer } from 'mobx-react-lite';
 import { useNavigation } from '@react-navigation/native';
 import { Colors, GlobalStyles, Spacing, Typography } from '../../styles/globalStyles';
 import { useStores } from '../../contexts/StoreContext';
 import AuthPrompt from '../../components/AuthPrompt';
+import Constants from 'expo-constants';
+import { Bell, Heart, ShoppingCart } from 'lucide-react-native';
 
 const TrackOrdersScreen = observer(() => {
   const navigation = useNavigation();
-  const { authStore, orderStore } = useStores();
+  const { authStore, orderStore, cartStore } = useStores();
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
 
   useEffect(() => {
@@ -25,6 +27,7 @@ const TrackOrdersScreen = observer(() => {
       setShowAuthPrompt(true);
     } else {
       // Load user orders for authenticated users
+      setShowAuthPrompt(false);
       if (orderStore && authStore.user) {
         orderStore.fetchUserOrders(authStore.user.id);
       }
@@ -33,6 +36,16 @@ const TrackOrdersScreen = observer(() => {
 
   const handleOrderPress = (orderId: string) => {
     navigation.navigate('OrderDetails', { orderId });
+  };
+
+  const handleCartPress = () => {
+    // Check if user is authenticated for cart access
+    if (authStore.requiresAuthentication()) {
+      // Show authentication prompt
+      navigation.navigate('Auth', { screen: 'Login' });
+      return;
+    }
+    navigation.navigate('Cart');
   };
 
   const getStatusColor = (status: string) => {
@@ -133,20 +146,40 @@ const TrackOrdersScreen = observer(() => {
   }
 
   return (
-    <SafeAreaView style={[GlobalStyles.safeArea, styles.container]}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Track Orders</Text>
-      </View>
+    <View style={[styles.container]}>
+      <SafeAreaProvider style={{ backgroundColor: '#fff', position: 'relative', paddingTop: Constants.statusBarHeight }}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Track Orders</Text>
+          
+          <View style={styles.rowContainer}>
+            <TouchableOpacity style={styles.cartButton} onPress={handleCartPress}>
+              <View style={styles.cartIconContainer}>
+                <ShoppingCart size={22} color={'#000'}/>
+                {cartStore.itemCount > 0 && (
+                  <View style={styles.cartBadge}>
+                    <Text style={styles.cartBadgeText}>
+                      {cartStore.itemCount > 99 ? '99+' : cartStore.itemCount}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.cartButton}>
+              <Bell size={22} color={'#000'}/>
+            </TouchableOpacity>
+          </View>
+        </View>
 
-      <FlatList
-        data={orderStore?.orders || []}
-        renderItem={renderOrder}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContainer}
-        ListEmptyComponent={renderEmptyState}
-        showsVerticalScrollIndicator={false}
-      />
-    </SafeAreaView>
+        <FlatList
+          data={orderStore?.orders || []}
+          renderItem={renderOrder}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContainer}
+          ListEmptyComponent={renderEmptyState}
+          showsVerticalScrollIndicator={false}
+        />
+      </SafeAreaProvider>
+    </View>
   );
 });
 
@@ -156,16 +189,49 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
     backgroundColor: Colors.white,
   },
   headerTitle: {
     fontSize: Typography.fontSize.xl,
     fontFamily: Typography.fontFamily.bold,
+    fontWeight: '600',
     color: Colors.label,
+  },
+  rowContainer: {
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 5
+  },
+  cartButton: {
+    padding: Spacing.sm,
+  },
+  cartIcon: {
+    color: '#000'
+  },
+  cartIconContainer: {
+    position: 'relative',
+  },
+  cartBadge: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: Colors.primary,
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cartBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '600',
   },
   listContainer: {
     padding: Spacing.md,

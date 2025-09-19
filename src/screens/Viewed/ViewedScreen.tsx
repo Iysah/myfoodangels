@@ -7,28 +7,42 @@ import {
   TouchableOpacity,
   Image,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { observer } from 'mobx-react-lite';
 import { useNavigation } from '@react-navigation/native';
 import { Colors, GlobalStyles, Spacing, Typography } from '../../styles/globalStyles';
 import { useStores } from '../../contexts/StoreContext';
 import AuthPrompt from '../../components/AuthPrompt';
+import Constants from 'expo-constants';
+import { Bell, Heart, ShoppingCart } from 'lucide-react-native';
 
-const ViewedScreen = observer(() => {
+const WishListScreen = observer(() => {
   const navigation = useNavigation();
-  const { authStore, productStore } = useStores();
+  const { authStore, productStore, cartStore } = useStores();
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
 
   useEffect(() => {
     // Check if user is authenticated when screen loads
     if (authStore.requiresAuthentication()) {
       setShowAuthPrompt(true);
+    } else if (authStore.isAuthenticated) {
+      setShowAuthPrompt(false)
     }
-    // Recently viewed products are automatically available in productStore.recentlyViewedProducts
+    // Recently WishList products are automatically available in productStore.recentlyWishListProducts
   }, [authStore.isAuthenticated]);
 
   const handleProductPress = (productId: string) => {
     navigation.navigate('ProductDetails', { productId });
+  };
+
+  const handleCartPress = () => {
+    // Check if user is authenticated for cart access
+    if (authStore.requiresAuthentication()) {
+      // Show authentication prompt
+      navigation.navigate('Auth', { screen: 'Login' });
+      return;
+    }
+    navigation.navigate('Cart');
   };
 
   const renderProduct = ({ item }: { item: any }) => (
@@ -40,7 +54,7 @@ const ViewedScreen = observer(() => {
       <View style={styles.productInfo}>
         <Text style={styles.productName}>{item.name}</Text>
         <Text style={styles.productPrice}>${item.price}</Text>
-        <Text style={styles.viewedDate}>Viewed {item.viewedAt}</Text>
+        <Text style={styles.WishListDate}>WishList {item.WishListAt}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -48,7 +62,7 @@ const ViewedScreen = observer(() => {
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
       <Text style={styles.emptyIcon}>👁️</Text>
-      <Text style={styles.emptyTitle}>No Recently Viewed Products</Text>
+      <Text style={styles.emptyTitle}>No Recently WishList Products</Text>
       <Text style={styles.emptyMessage}>
         Products you view will appear here for easy access later.
       </Text>
@@ -65,14 +79,14 @@ const ViewedScreen = observer(() => {
     return (
       <SafeAreaView style={[GlobalStyles.safeArea, styles.container]}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Recently Viewed</Text>
+          <Text style={styles.headerTitle}>Recently WishList</Text>
         </View>
         
         <View style={styles.authRequiredContainer}>
           <Text style={styles.authRequiredIcon}>🔒</Text>
           <Text style={styles.authRequiredTitle}>Sign In Required</Text>
           <Text style={styles.authRequiredMessage}>
-            Sign in to view your recently viewed products and keep track of items you're interested in.
+            Sign in to view your recently WishList products and keep track of items you're interested in.
           </Text>
           <TouchableOpacity
             style={[GlobalStyles.primaryButton, styles.signInButton]}
@@ -91,28 +105,48 @@ const ViewedScreen = observer(() => {
         <AuthPrompt
           visible={showAuthPrompt}
           onClose={() => setShowAuthPrompt(false)}
-          feature="recently viewed products"
-          message="Sign in to keep track of products you've viewed and easily find them later."
+          feature="recently WishList products"
+          message="Sign in to keep track of products you've WishList and easily find them later."
         />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={[GlobalStyles.safeArea, styles.container]}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Recently Viewed</Text>
-      </View>
+    <View style={styles.container}>
+      <SafeAreaProvider style={{ backgroundColor: '#fff', position: 'relative', paddingTop: Constants.statusBarHeight }}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Recently WishList</Text>
 
-      <FlatList
-        data={productStore?.recentlyViewedProducts || []}
-        renderItem={renderProduct}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContainer}
-        ListEmptyComponent={renderEmptyState}
-        showsVerticalScrollIndicator={false}
-      />
-    </SafeAreaView>
+          <View style={styles.rowContainer}>
+            <TouchableOpacity style={styles.cartButton} onPress={handleCartPress}>
+              <View style={styles.cartIconContainer}>
+                <ShoppingCart size={18} color={'#000'}/>
+                {cartStore.itemCount > 0 && (
+                  <View style={styles.cartBadge}>
+                    <Text style={styles.cartBadgeText}>
+                      {cartStore.itemCount > 99 ? '99+' : cartStore.itemCount}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.cartButton}>
+              <Bell size={18} color={'#000'}/>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <FlatList
+          data={productStore?.recentlyWishListProducts || []}
+          renderItem={renderProduct}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContainer}
+          ListEmptyComponent={renderEmptyState}
+          showsVerticalScrollIndicator={false}
+        />
+      </SafeAreaProvider>
+    </View>
   );
 });
 
@@ -122,16 +156,49 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
     backgroundColor: Colors.white,
   },
   headerTitle: {
     fontSize: Typography.fontSize.xl,
     fontFamily: Typography.fontFamily.bold,
+    fontWeight: '600',
     color: Colors.label,
+  },
+  rowContainer: {
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 5
+  },
+  cartButton: {
+    padding: Spacing.sm,
+  },
+  cartIcon: {
+    color: '#000'
+  },
+  cartIconContainer: {
+    position: 'relative',
+  },
+  cartBadge: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: Colors.primary,
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cartBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '600',
   },
   listContainer: {
     padding: Spacing.md,
@@ -170,7 +237,7 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     marginBottom: 4,
   },
-  viewedDate: {
+  WishListDate: {
     fontSize: Typography.fontSize.sm,
     fontFamily: Typography.fontFamily.regular,
     color: Colors.textSecondary,
@@ -242,4 +309,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ViewedScreen;
+export default WishListScreen;

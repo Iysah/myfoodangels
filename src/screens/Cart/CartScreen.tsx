@@ -9,12 +9,13 @@ import {
   Image,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { observer } from 'mobx-react-lite';
 import { useNavigation } from '@react-navigation/native';
 import { Colors, GlobalStyles, Spacing, Typography } from '../../styles/globalStyles';
 import { useStores } from '../../contexts/StoreContext';
 import AuthPrompt from '../../components/AuthPrompt';
+import Constants from 'expo-constants';
 
 const CartScreen = observer(() => {
   const navigation = useNavigation();
@@ -26,6 +27,8 @@ const CartScreen = observer(() => {
     if (authStore.requiresAuthentication()) {
       setShowAuthPrompt(true);
       return;
+    } else {
+      setShowAuthPrompt(false)
     }
 
     // Proceed to checkout for authenticated users
@@ -61,12 +64,12 @@ const CartScreen = observer(() => {
 
   const renderCartItem = ({ item }: { item: any }) => (
     <View style={styles.cartItem}>
-      <Image source={{ uri: item.product.imageUrl }} style={styles.productImage} />
+      <Image source={{ uri: item?.product?.imageUrl }} style={styles.productImage} />
       
       <View style={styles.productInfo}>
         <Text style={styles.productName}>{item.product.name}</Text>
         <Text style={styles.productPrice}>
-          ${(item.product.salePrice || item.product.price).toFixed(2)}
+          ₦{(item.product.salePrice || item.product.price).toFixed(2)}
         </Text>
         
         {item.selectedOptions && (
@@ -124,64 +127,66 @@ const CartScreen = observer(() => {
   );
 
   return (
-    <SafeAreaView style={[GlobalStyles.safeArea, styles.container]}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Text style={styles.backButtonText}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Shopping Cart</Text>
-        <View style={styles.headerRight} />
-      </View>
+    <View style={[styles.container]}>
+      <SafeAreaProvider style={{ backgroundColor: '#fff', position: 'relative', paddingTop: Constants.statusBarHeight }}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.backButtonText}>←</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Shopping Cart</Text>
+          <View style={styles.headerRight} />
+        </View>
 
-      {cartStore.items.length === 0 ? (
-        renderEmptyCart()
-      ) : (
-        <>
-          <FlatList
-            data={cartStore.items}
-            renderItem={renderCartItem}
-            keyExtractor={(item, index) => `${item.product.id}-${index}`}
-            style={styles.cartList}
-            showsVerticalScrollIndicator={false}
-          />
-          
-          <View style={styles.footer}>
-            <View style={styles.totalContainer}>
-              <View style={styles.totalRow}>
-                <Text style={styles.totalLabel}>Subtotal ({cartStore.itemCount} items)</Text>
-                <Text style={styles.totalAmount}>${cartStore.total.toFixed(2)}</Text>
+        {cartStore.items.length === 0 ? (
+          renderEmptyCart()
+        ) : (
+          <>
+            <FlatList
+              data={cartStore.items}
+              renderItem={renderCartItem}
+              keyExtractor={(item, index) => `${item.product.id}-${index}`}
+              style={styles.cartList}
+              showsVerticalScrollIndicator={false}
+            />
+            
+            <View style={styles.footer}>
+              <View style={styles.totalContainer}>
+                <View style={styles.totalRow}>
+                  <Text style={styles.totalLabel}>Subtotal ({cartStore.itemCount} items)</Text>
+                  <Text style={styles.totalAmount}>₦{cartStore.total.toFixed(2)}</Text>
+                </View>
+                
+                <TouchableOpacity
+                  style={[GlobalStyles.primaryButton, styles.checkoutButton]}
+                  onPress={handleCheckout}
+                >
+                  <Text style={GlobalStyles.primaryButtonText}>
+                    {authStore.requiresAuthentication() ? 'Sign In to Checkout' : 'Proceed to Checkout'}
+                  </Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={styles.continueShoppingButton}
+                  onPress={handleContinueShopping}
+                >
+                  <Text style={styles.continueShoppingText}>Continue Shopping</Text>
+                </TouchableOpacity>
               </View>
-              
-              <TouchableOpacity
-                style={[GlobalStyles.primaryButton, styles.checkoutButton]}
-                onPress={handleCheckout}
-              >
-                <Text style={GlobalStyles.primaryButtonText}>
-                  {authStore.requiresAuthentication() ? 'Sign In to Checkout' : 'Proceed to Checkout'}
-                </Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={styles.continueShoppingButton}
-                onPress={handleContinueShopping}
-              >
-                <Text style={styles.continueShoppingText}>Continue Shopping</Text>
-              </TouchableOpacity>
             </View>
-          </View>
-        </>
-      )}
+          </>
+        )}
 
-      <AuthPrompt
-        visible={showAuthPrompt}
-        onClose={() => setShowAuthPrompt(false)}
-        feature="checkout"
-        message="Sign in to proceed with your purchase and track your order."
-      />
-    </SafeAreaView>
+        <AuthPrompt
+          visible={showAuthPrompt}
+          onClose={() => setShowAuthPrompt(false)}
+          feature="checkout"
+          message="Sign in to proceed with your purchase and track your order."
+        />
+      </SafeAreaProvider>
+    </View>
   );
 });
 
@@ -197,8 +202,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     backgroundColor: Colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
   },
   backButton: {
     padding: Spacing.xs,
@@ -210,6 +213,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: Typography.fontSize.xl,
     fontFamily: Typography.fontFamily.bold,
+    fontWeight: '600',
     color: Colors.label,
   },
   headerRight: {
@@ -226,11 +230,8 @@ const styles = StyleSheet.create({
     marginVertical: Spacing.xs,
     borderRadius: 12,
     alignItems: 'center',
-    shadowColor: Colors.label,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#F4F4F4',
   },
   productImage: {
     width: 60,

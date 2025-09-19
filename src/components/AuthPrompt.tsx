@@ -15,6 +15,10 @@ interface AuthPromptProps {
   title?: string;
   message?: string;
   feature?: string;
+  returnTo?: {
+    screen: string;
+    params?: any;
+  };
 }
 
 const AuthPrompt: React.FC<AuthPromptProps> = ({
@@ -23,6 +27,7 @@ const AuthPrompt: React.FC<AuthPromptProps> = ({
   title = 'Sign In Required',
   message,
   feature = 'this feature',
+  returnTo,
 }) => {
   const navigation = useNavigation();
 
@@ -30,12 +35,18 @@ const AuthPrompt: React.FC<AuthPromptProps> = ({
 
   const handleSignIn = () => {
     onClose();
-    navigation.navigate('Auth', { screen: 'Login' });
+    navigation.navigate('Auth', { 
+      screen: 'Login',
+      params: returnTo ? { returnTo } : undefined
+    });
   };
 
   const handleSignUp = () => {
     onClose();
-    navigation.navigate('Auth', { screen: 'Register' });
+    navigation.navigate('Auth', { 
+      screen: 'Register',
+      params: returnTo ? { returnTo } : undefined
+    });
   };
 
   const handleContinueAsGuest = () => {

@@ -1,4 +1,4 @@
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { observer } from 'mobx-react-lite';
 import React, { useState } from 'react';
@@ -17,10 +17,15 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BorderRadius, Colors, GlobalStyles, Spacing, Typography } from '../../styles/globalStyles';
 import { useStores } from '../../contexts/StoreContext';
+import ToastService from '../../utils/Toast';
+import { AuthStackParamList } from '../../navigation/types';
+
+type RegisterScreenRouteProp = RouteProp<AuthStackParamList, 'Register'>;
 
 const RegisterScreen = observer(() => {
   const { authStore } = useStores();
   const navigation = useNavigation();
+  const route = useRoute<RegisterScreenRouteProp>();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -29,29 +34,40 @@ const RegisterScreen = observer(() => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  const returnTo = route.params?.returnTo;
+
   const handleRegister = async () => {
     // Validate inputs
     if (!name || !email || !password || !confirmPassword) {
-      Alert.alert('Error', 'Please fill in all fields');
+      ToastService.error('Error', 'Please fill in all fields');
       return;
     }
 
     if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
+      ToastService.error('Error', 'Passwords do not match');
       return;
     }
 
     if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters long');
+      ToastService.error('Error', 'Password must be at least 6 characters long');
       return;
     }
 
     setIsLoading(true);
     try {
       await authStore.register(email, password, { displayName: name });
-      // Navigation will be handled by the root navigator based on auth state
+      ToastService.success('Welcome!', 'Your account has been created successfully');
+      
+      // Navigate back if returnTo is provided, otherwise let root navigator handle it
+      if (returnTo) {
+        // Use setTimeout to ensure auth state is updated first
+        setTimeout(() => {
+          navigation.goBack();
+        }, 100);
+      }
+      // Otherwise, navigation will be handled by the root navigator based on auth state
     } catch (error) {
-      Alert.alert('Registration Failed', error instanceof Error ? error.message : 'An unknown error occurred');
+      ToastService.error('Registration Failed', error instanceof Error ? error.message : 'An unknown error occurred');
     } finally {
       setIsLoading(false);
     }

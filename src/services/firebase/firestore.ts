@@ -110,13 +110,20 @@ export const listenToDocument = <T extends DocumentData>(
   callback: (data: T | null) => void
 ) => {
   const docRef = doc(firestore, collectionName, docId);
-  return onSnapshot(docRef, (docSnap) => {
-    if (docSnap.exists()) {
-      callback({ id: docSnap.id, ...docSnap.data() } as unknown as T);
-    } else {
-      callback(null);
+  return onSnapshot(
+    docRef, 
+    (docSnap) => {
+      if (docSnap.exists()) {
+        callback({ id: docSnap.id, ...docSnap.data() } as unknown as T);
+      } else {
+        callback(null);
+      }
+    },
+    (error) => {
+      console.warn('Firebase listener error (this is usually temporary):', error.message);
+      // Don't throw the error, just log it as these are often transient network issues
     }
-  });
+  );
 };
 
 // Generic function to listen to a query

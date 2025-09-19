@@ -5,12 +5,12 @@ import { observer } from 'mobx-react-lite';
 
 // Import screens
 import HomeScreen from '../screens/Home/HomeScreen';
-import ViewedScreen from '../screens/Viewed/ViewedScreen';
+import WishListScreen from '../screens/Wishlist/WishlistScreen'
 import TrackOrdersScreen from '../screens/TrackOrders/TrackOrdersScreen';
 import ProfileScreen from '../screens/Profile/ProfileScreen';
 import { MainTabParamList } from './types';
 import { Colors } from '../styles/globalStyles';
-import { Eye, House, Truck, UserRound } from 'lucide-react-native';
+import { Eye, Heart, House, Truck, UserRound } from 'lucide-react-native';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
@@ -40,16 +40,16 @@ const MainNavigator = observer(() => {
         component={HomeScreen}
         options={{
           tabBarIcon: ({ color, size }: { color: string; size: number }) => (
-            <House size={22} color={Colors.primary}/>
+            <House size={22} color={color}/>
           ),
         }}
       />
       <Tab.Screen
-        name="Viewed"
-        component={ViewedScreen}
+        name="WishList"
+        component={WishListScreen}
         options={{
           tabBarIcon: ({ color, size }: { color: string; size: number }) => (
-            <Eye size={22} color={Colors.primary} />
+            <Heart size={22} color={color} />
           ),
         }}
       />
@@ -59,7 +59,7 @@ const MainNavigator = observer(() => {
         options={{
           tabBarLabel: 'Orders',
           tabBarIcon: ({ color, size }: { color: string; size: number }) => (
-            <Truck size={22} color={Colors.primary} />
+            <Truck size={22} color={color} />
           ),
         }}
       />
@@ -68,7 +68,7 @@ const MainNavigator = observer(() => {
         component={ProfileScreen}
         options={{
           tabBarIcon: ({ color, size }: { color: string; size: number }) => (
-            <UserRound size={22} color={Colors.primary} />
+            <UserRound size={22} color={color} />
           ),
         }}
       />
