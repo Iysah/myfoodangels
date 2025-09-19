@@ -39,7 +39,9 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
-/ios
-/android
-mfa-google-services.json
+ios/
+android/
+
+google-services.json
 myfoodangels-google-services.json
+GoogleService-Info.plist
