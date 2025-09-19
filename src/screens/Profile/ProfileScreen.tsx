@@ -8,12 +8,14 @@ import {
   Image,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { observer } from 'mobx-react-lite';
 import { useNavigation } from '@react-navigation/native';
 import { Colors, GlobalStyles, Spacing, Typography } from '../../styles/globalStyles';
 import { useStores } from '../../contexts/StoreContext';
 import AuthPrompt from '../../components/AuthPrompt';
+import { ArrowBigRight, ArrowRight } from 'lucide-react-native';
+import Constants from 'expo-constants';
 
 const ProfileScreen = observer(() => {
   const navigation = useNavigation();
@@ -42,17 +44,23 @@ const ProfileScreen = observer(() => {
       onPress: () => navigation.navigate('Wallet'),
     },
     {
-      id: 'settings',
-      title: 'Settings',
-      icon: '⚙️',
-      onPress: () => navigation.navigate('Settings'),
+      id: 'refer',
+      title: 'Refer and Earn',
+      icon: '🔔',
+      onPress: () => navigation.navigate('Refer'),
     },
     {
-      id: 'notifications',
-      title: 'Notifications',
+      id: 'faqs',
+      title: 'FAQS',
       icon: '🔔',
-      onPress: () => navigation.navigate('Notifications'),
-    },
+      onPress: () => navigation.navigate('Faqs'),
+    }, 
+    {
+      id: 'about',
+      title: 'About',
+      icon: '🚪',
+      onPress: () => navigation.navigate('About'),
+    }
   ];
 
   const renderMenuItem = (item: any) => (
@@ -65,7 +73,8 @@ const ProfileScreen = observer(() => {
         <Text style={styles.menuIcon}>{item.icon}</Text>
         <Text style={styles.menuTitle}>{item.title}</Text>
       </View>
-      <Text style={styles.menuArrow}>›</Text>
+
+      <Text> - </Text>
     </TouchableOpacity>
   );
 
@@ -113,44 +122,46 @@ const ProfileScreen = observer(() => {
   }
 
   return (
-    <SafeAreaView style={[GlobalStyles.safeArea, styles.container]}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Profile</Text>
-      </View>
+    <View style={[styles.container]}>
+      <SafeAreaProvider style={{ backgroundColor: '#fff', position: 'relative', paddingTop: Constants.statusBarHeight }}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Profile</Text>
+        </View>
 
-      <ScrollView style={styles.content}>
-        <View style={styles.profileSection}>
-          <View style={styles.avatarContainer}>
-            {authStore.user?.photoURL ? (
-              <Image source={{ uri: authStore.user.photoURL }} style={styles.avatar} />
-            ) : (
-              <View style={styles.avatarPlaceholder}>
-                <Text style={styles.avatarText}>
-                  {authStore.user?.displayName?.charAt(0) || authStore.user?.email?.charAt(0) || '?'}
-                </Text>
-              </View>
-            )}
+        <ScrollView style={styles.content}>
+          <View style={styles.profileSection}>
+            <View style={styles.avatarContainer}>
+              {authStore.user?.photoURL ? (
+                <Image source={{ uri: authStore.user.photoURL }} style={styles.avatar} />
+              ) : (
+                <View style={styles.avatarPlaceholder}>
+                  <Text style={styles.avatarText}>
+                    {authStore.user?.displayName?.charAt(0) || authStore.user?.email?.charAt(0) || '?'}
+                  </Text>
+                </View>
+              )}
+            </View>
+            <Text style={styles.userName}>
+              {authStore.user?.displayName || 'User'}
+            </Text>
+            <Text style={styles.userEmail}>
+              {authStore.user?.email || authStore.user?.phoneNumber || ''}
+            </Text>
           </View>
-          <Text style={styles.userName}>
-            {authStore.user?.displayName || 'User'}
-          </Text>
-          <Text style={styles.userEmail}>
-            {authStore.user?.email || authStore.user?.phoneNumber || ''}
-          </Text>
-        </View>
 
-        <View style={styles.menuSection}>
-          {profileMenuItems.map(renderMenuItem)}
-        </View>
+          <View style={styles.menuSection}>
+            {profileMenuItems.map(renderMenuItem)}
+          </View>
 
-        <TouchableOpacity
-          style={styles.signOutButton}
-          onPress={handleSignOut}
-        >
-          <Text style={styles.signOutText}>Sign Out</Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </SafeAreaView>
+          <TouchableOpacity
+            style={styles.signOutButton}
+            onPress={handleSignOut}
+          >
+            <Text style={styles.signOutText}>Sign Out</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </SafeAreaProvider>
+    </View>
   );
 });
 
@@ -162,20 +173,18 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
     backgroundColor: Colors.white,
   },
   headerTitle: {
     fontSize: Typography.fontSize.xl,
     fontFamily: Typography.fontFamily.bold,
+    fontWeight: '600',
     color: Colors.label,
   },
   content: {
     flex: 1,
   },
   profileSection: {
-    backgroundColor: Colors.white,
     alignItems: 'center',
     paddingVertical: Spacing.xl,
     marginBottom: Spacing.md,
@@ -213,7 +222,6 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
   },
   menuSection: {
-    backgroundColor: Colors.white,
     marginBottom: Spacing.md,
   },
   menuItem: {
@@ -222,8 +230,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.md,
+
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   menuItemLeft: {
     flexDirection: 'row',
@@ -237,10 +249,6 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.base,
     fontFamily: Typography.fontFamily.medium,
     color: Colors.label,
-  },
-  menuArrow: {
-    fontSize: 20,
-    color: Colors.textSecondary,
   },
   signOutButton: {
     backgroundColor: Colors.white,

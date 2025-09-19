@@ -1,4 +1,5 @@
 import { makeAutoObservable, runInAction } from 'mobx';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Product } from '../types';
 
 export interface CartItem {
@@ -20,22 +21,33 @@ class CartStore {
   // Load cart from AsyncStorage
   loadCartFromStorage = async () => {
     try {
-      // In a real app, we would load from AsyncStorage
-      // For now, we'll just initialize with an empty cart
-      this.items = [];
-    } catch (error: any) {
-      this.error = error.message;
+      this.isLoading = true;
+      const cartData = await AsyncStorage.getItem('cart_items');
+      if (cartData) {
+        const parsedItems = JSON.parse(cartData);
+        runInAction(() => {
+          this.items = parsedItems;
+        });
+        console.log('Cart loaded from storage:', parsedItems.length, 'items');
+      }
+    } catch (error) {
+      console.error('Error loading cart from storage:', error);
+      this.error = 'Failed to load cart from storage';
+    } finally {
+      runInAction(() => {
+        this.isLoading = false;
+      });
     }
   };
 
   // Save cart to AsyncStorage
   saveCartToStorage = async () => {
     try {
-      // In a real app, we would save to AsyncStorage
-      // For now, we'll just log the cart
-      console.log('Cart saved:', this.items);
-    } catch (error: any) {
-      this.error = error.message;
+      await AsyncStorage.setItem('cart_items', JSON.stringify(this.items));
+      console.log('Cart saved to storage:', this.items.length, 'items');
+    } catch (error) {
+      console.error('Error saving cart to storage:', error);
+      this.error = 'Failed to save cart to storage';
     }
   };
 

@@ -1,4 +1,4 @@
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { observer } from 'mobx-react-lite';
 import React, { useState } from 'react';
@@ -17,27 +17,43 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BorderRadius, Colors, GlobalStyles, Spacing, Typography } from '../../styles/globalStyles';
 import { useStores } from '../../contexts/StoreContext';
+import ToastService from '../../utils/Toast';
+import { AuthStackParamList } from '../../navigation/types';
+
+type LoginScreenRouteProp = RouteProp<AuthStackParamList, 'Login'>;
 
 const LoginScreen = observer(() => {
   const { authStore } = useStores();
   const navigation = useNavigation();
+  const route = useRoute<LoginScreenRouteProp>();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  const returnTo = route.params?.returnTo;
+
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+      ToastService.error('Error', 'Please fill in all fields');
       return;
     }
 
     setIsLoading(true);
     try {
       await authStore.loginWithEmail(email, password);
-      // Navigation will be handled by the root navigator based on auth state
+      ToastService.success('Welcome back!', 'You have successfully logged in');
+      
+      // Navigate back if returnTo is provided, otherwise let root navigator handle it
+      if (returnTo) {
+        // Use setTimeout to ensure auth state is updated first
+        setTimeout(() => {
+          navigation.goBack();
+        }, 100);
+      }
+      // Otherwise, navigation will be handled by the root navigator based on auth state
     } catch (error: any) {
-      Alert.alert('Login Failed', error.message);
+      ToastService.error('Login Failed', error.message);
     } finally {
       setIsLoading(false);
     }

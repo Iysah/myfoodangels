@@ -8,7 +8,7 @@ export interface User {
   updatedAt: Date;
   address?: Address[];
   favoriteProducts?: string[];
-  recentlyViewedProducts?: string[];
+  recentlyWishListProducts?: string[];
   notificationSettings?: NotificationSettings;
 }
 

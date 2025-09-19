@@ -171,6 +171,8 @@ export class LoystarAPI {
     }
   }
 
+  // signup or add user
+
   static async makeAuthenticatedRequest(endpoint: string, options: RequestInit = {}): Promise<any> {
     if (!this.baseURL) {
       throw new Error('Loystar base URL is not configured');
@@ -210,14 +212,14 @@ export class LoystarAPI {
     categoryId?: number,
     page: number = 1,
     pageSize: number = 10
-  ): Promise<LoystarProductsResponse> {
+  ): Promise<LoystarProduct[]> {
     if (!this.baseURL) {
       throw new Error('Loystar base URL is not configured');
     }
 
-    if (!this.authToken) {
-      throw new Error('No authentication token available. Please login first.');
-    }
+    // if (!this.authToken) {
+    //   throw new Error('No authentication token available. Please login first.');
+    // }
 
     let endpoint = `/get_latest_merchant_products?page[number]=${page}&page[size]=${pageSize}`;
     if (categoryId) {
@@ -225,7 +227,7 @@ export class LoystarAPI {
     }
 
     const headers = {
-      'access-token': 'AsAVo8qbTfNbSaWHFt91fg',
+      'token': 'AsAVo8qbTfNbSaWHFt91fg',
       'client': 'qEAX9J5cVY7iQ3jvqEZMAQ',
       'uid': 'myfoodangels@gmail.com',
       'token-type': 'Bearer',
@@ -247,7 +249,7 @@ export class LoystarAPI {
         throw new Error(`Failed to fetch products: ${response.status} ${errorText}`);
       }
 
-      const data: LoystarProductsResponse = await response.json();
+      const data: LoystarProduct[] = await response.json();
       console.log('Loystar products fetched successfully:', data);
       
       return data;
@@ -258,7 +260,7 @@ export class LoystarAPI {
   }
 
   // Fetch Farm Offtake products (category_id = 7486)
-  static async fetchFarmOfftakeProducts(page: number = 1, pageSize: number = 6): Promise<LoystarProductsResponse> {
+  static async fetchFarmOfftakeProducts(page: number = 1, pageSize: number = 6): Promise<LoystarProduct[]> {
     return this.fetchProducts(7486, page, pageSize);
   }
 }

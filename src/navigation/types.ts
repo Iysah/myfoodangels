@@ -3,8 +3,8 @@ import { NavigatorScreenParams } from '@react-navigation/native';
 // Auth Navigator Param List
 export type AuthStackParamList = {
   Onboarding: undefined;
-  Login: undefined;
-  Register: undefined;
+  Login: { returnTo?: { screen: string; params?: any } } | undefined;
+  Register: { returnTo?: { screen: string; params?: any } } | undefined;
   ForgotPassword: undefined;
   PhoneLogin: undefined;
 };
@@ -12,7 +12,7 @@ export type AuthStackParamList = {
 // Main Tab Navigator Param List
 export type MainTabParamList = {
   Home: undefined;
-  Viewed: undefined;
+  WishList: undefined;
   TrackOrders: undefined;
   Profile: undefined;
 };
@@ -21,6 +21,9 @@ export type MainTabParamList = {
 export type RootStackParamList = {
   Auth: NavigatorScreenParams<AuthStackParamList>;
   Main: NavigatorScreenParams<MainTabParamList>;
+  Categories: undefined;
+  Search: undefined;
+  Products: { category: { id: string; name: string; loystarId: number; image?: string } };
   ProductDetails: { productId: string };
   Cart: undefined;
   Checkout: undefined;
@@ -32,6 +35,10 @@ export type RootStackParamList = {
   TopUp: undefined;
   Settings: undefined;
   Notifications: undefined;
+  Likes: undefined;
+  About: undefined;
+  Refer: undefined;
+  Faqs: undefined;
   Reviews: { productId: string };
   MakeOffer: { productId: string };
 };

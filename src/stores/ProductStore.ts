@@ -1,12 +1,12 @@
 import { makeAutoObservable, runInAction } from 'mobx';
 import { Product, FilterOptions, Review, Offer, Category } from '../types';
 import * as FirestoreService from '../services/firebase/firestore';
-import { LoystarAPI, LoystarProduct, LoystarProductsResponse } from '../services/loystar';
+import { LoystarAPI, LoystarProduct } from '../services/loystar';
 
 class ProductStore {
   products: Product[] = [];
   featuredProducts: Product[] = [];
-  recentlyViewedProducts: Product[] = [];
+  recentlyWishListProducts: Product[] = [];
   categories: Category[] = [];
   currentProduct: Product | null = null;
   isLoading: boolean = false;
@@ -166,11 +166,11 @@ class ProductStore {
         this.currentProduct = product;
         this.isLoading = false;
         
-        // Add to recently viewed if not already there
-        if (product && !this.recentlyViewedProducts.some(p => p.id === product.id)) {
-          this.recentlyViewedProducts = [
+        // Add to recently WishList if not already there
+        if (product && !this.recentlyWishListProducts.some(p => p.id === product.id)) {
+          this.recentlyWishListProducts = [
             product,
-            ...this.recentlyViewedProducts.slice(0, 9) // Keep only 10 most recent
+            ...this.recentlyWishListProducts.slice(0, 9) // Keep only 10 most recent
           ];
         }
       });
@@ -316,23 +316,29 @@ class ProductStore {
     
     try {
       console.log('Fetching Farm Offtake products from Loystar...');
-      const response: LoystarProductsResponse = await LoystarAPI.fetchFarmOfftakeProducts(page, pageSize);
+      const products: LoystarProduct[] = await LoystarAPI.fetchFarmOfftakeProducts(page, pageSize);
       
       runInAction(() => {
         if (page === 1) {
           // First page - replace products
-          this.farmOfftakeProducts = response.data;
+          this.farmOfftakeProducts = products;
         } else {
           // Additional pages - append products
-          this.farmOfftakeProducts = [...this.farmOfftakeProducts, ...response.data];
+          this.farmOfftakeProducts = [...this.farmOfftakeProducts, ...products];
         }
-        this.farmOfftakeMeta = response.meta;
+        // Since the API doesn't return pagination meta, we'll handle it differently
+        this.farmOfftakeMeta = {
+          current_page: page,
+          total_pages: products.length === pageSize ? page + 1 : page,
+          total_count: this.farmOfftakeProducts.length,
+          per_page: pageSize
+        };
         this.farmOfftakeLoading = false;
         this.farmOfftakeError = null;
       });
       
-      console.log('Farm Offtake products fetched successfully:', response.data.length, 'products');
-      return response;
+      console.log('Farm Offtake products fetched successfully:', products.length, 'products');
+      return products;
     } catch (error: any) {
       console.error('Error fetching Farm Offtake products:', error);
       runInAction(() => {

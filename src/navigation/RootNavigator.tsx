@@ -6,9 +6,21 @@ import AuthNavigator from './AuthNavigator';
 import MainNavigator from './MainNavigator';
 import CartScreen from '../screens/Cart/CartScreen';
 import CheckoutScreen from '../screens/Checkout/CheckoutScreen';
+import CategoriesScreen from '../screens/Categories/CategoriesScreen';
+import SearchScreen from '../screens/Search/SearchScreen';
+import ProductsScreen from '../screens/Products/ProductsScreen';
+import ProductDetailsScreen from '../screens/Products/ProductDetailsScreen';
+import NotificationsScreen from '../screens/Notifications/NotificationScreen';
+
 import { useStores } from '../contexts/StoreContext';
 
 import { RootStackParamList } from './types';
+import EditProfileScreen from '../screens/Profile/EditProfileScreen';
+import LikesScreen from '../screens/Likes/LikesScreen';
+import AboutScreen from '../screens/Profile/AboutScreen';
+import ReferScreen from '../screens/Profile/ReferScreen';
+import FaqsScreen from '../screens/Profile/FaqsScreen';
+import WalletScreen from '../screens/Wallet/WalletScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
 
@@ -54,18 +66,25 @@ const RootNavigator = observer(() => {
           }}
         />
         {/* Other screens that are not part of the tab navigator */}
+        <Stack.Screen name="Categories" component={CategoriesScreen} />
+        <Stack.Screen name="Search" component={SearchScreen} />
+        <Stack.Screen name="Products" component={ProductsScreen} />
         <Stack.Screen name="Cart" component={CartScreen} />
         <Stack.Screen name="Checkout" component={CheckoutScreen} />
-        {/* 
         <Stack.Screen name="ProductDetails" component={ProductDetailsScreen} />
+        <Stack.Screen name="Notifications" component={NotificationsScreen} />
+        <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+        <Stack.Screen name="Likes" component={LikesScreen} />
+        <Stack.Screen name="About" component={AboutScreen} />
+        <Stack.Screen name="Refer" component={ReferScreen} />
+        <Stack.Screen name="Faqs" component={FaqsScreen} />
+        <Stack.Screen name="Wallet" component={WalletScreen} />
+        {/* 
         <Stack.Screen name="OrderConfirmation" component={OrderConfirmationScreen} />
         <Stack.Screen name="OrderDetails" component={OrderDetailsScreen} />
-        <Stack.Screen name="EditProfile" component={EditProfileScreen} />
-        <Stack.Screen name="Wallet" component={WalletScreen} />
         <Stack.Screen name="AddCard" component={AddCardScreen} />
         <Stack.Screen name="TopUp" component={TopUpScreen} />
         <Stack.Screen name="Settings" component={SettingsScreen} />
-        <Stack.Screen name="Notifications" component={NotificationsScreen} />
         <Stack.Screen name="Reviews" component={ReviewsScreen} />
         <Stack.Screen name="MakeOffer" component={MakeOfferScreen} />
         */}
