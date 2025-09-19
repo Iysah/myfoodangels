@@ -2,11 +2,15 @@ export interface Wallet {
   id: string;
   userId: string;
   balance: number;
-  currency: string;
-  createdAt: Date;
-  updatedAt: Date;
-  transactions: Transaction[];
-  cards: PaymentCard[];
+  currency?: string;
+  name: string;
+  email: string;
+  totalDeposit: number;
+  totalSpent: number;
+  createdAt?: Date;
+  updatedAt?: Date;
+  transactions?: Transaction[];
+  cards?: PaymentCard[];
 }
 
 export interface Transaction {

@@ -25,7 +25,7 @@ import {
 
 const HomeScreen = observer(() => {
   const navigation = useNavigation();
-  const { authStore, productStore, cartStore } = useStores();
+  const { authStore, productStore, cartStore, wishlistStore } = useStores();
   const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
 
   useEffect(() => {
@@ -41,6 +41,7 @@ const HomeScreen = observer(() => {
         await Promise.all([
           productStore.fetchFeaturedProducts(),
           productStore.fetchCategories(),
+          productStore.fetchAllLoystarProducts(50), // Fetch random 10 products for All Products section
         ]);
         
         // Fetch Farm Offtake products from Loystar if user is authenticated
@@ -55,6 +56,7 @@ const HomeScreen = observer(() => {
         console.log('Featured products count:', productStore.featuredProducts.length);
         console.log('Categories count:', productStore.categories.length);
         console.log('Farm Offtake products count:', productStore.farmOfftakeProducts.length);
+        console.log('All Loystar products count:', productStore.allLoystarProducts.length);
       } catch (error) {
         console.error('Error loading home screen data:', error);
       }
@@ -74,7 +76,6 @@ const HomeScreen = observer(() => {
   }, []);
 
   const handleProductPress = (productId: string) => {
-    // Navigate to product details
     navigation.navigate('ProductDetails', { productId });
   };
 
@@ -90,33 +91,114 @@ const HomeScreen = observer(() => {
     navigation.navigate('Notifications');
   };
 
-  const renderProduct = ({ item }: { item: any }) => (
-    <TouchableOpacity
-      style={styles.productCard}
-      onPress={() => handleProductPress(item.id)}
-    >
-      <Image source={{ uri: item.imageUrl }} style={styles.productImage} />
-      <View style={styles.productInfo}>
-        <Text style={styles.productName}>{item.name}</Text>
-        <Text style={styles.productPrice}>${item.price}</Text>
-      </View>
-    </TouchableOpacity>
-  );
+  const renderProduct = ({ item }: { item: any }) => {
+    const isInWishlist = wishlistStore.isInWishlist(parseInt(item.id));
+    
+    const handleAddToCart = (e: any) => {
+      e.stopPropagation();
+      cartStore.addItem(item, 1);
+    };
+
+    const handleToggleWishlist = (e: any) => {
+      e.stopPropagation();
+      // For regular products, we'll skip wishlist functionality for now
+      // since they don't match the LoystarProduct interface
+      console.log('Wishlist functionality not available for regular products');
+    };
+
+    return (
+      <TouchableOpacity
+        style={styles.productCard}
+        onPress={() => handleProductPress(item.id)}
+      >
+        <View style={styles.productImageContainer}>
+          <Image source={{ uri: item.imageUrl || item.images?.[0] }} style={styles.productImage} />
+          <TouchableOpacity 
+            style={styles.wishlistButton}
+            onPress={handleToggleWishlist}
+          >
+            <Heart 
+              size={20} 
+              color={isInWishlist ? Colors.primary : Colors.textSecondary}
+              fill={isInWishlist ? Colors.primary : 'transparent'}
+            />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.productInfo}>
+          <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
+          <Text style={styles.productPrice}>₦{item.price}</Text>
+          <TouchableOpacity 
+            style={styles.addToCartButton}
+            onPress={handleAddToCart}
+          >
+            <ShoppingCart size={16} color={Colors.white} />
+            <Text style={styles.addToCartText}>Add to Cart</Text>
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   const renderLoystarProduct = ({ item }: { item: any }) => {
     const currentPrice = parseFloat(item.price);
     const originalPrice = parseFloat(item.original_price);
     const hasDiscount = originalPrice && currentPrice < originalPrice;
+    const isInWishlist = wishlistStore.isInWishlist(item.id);
+    
+    const handleAddToCart = (e: any) => {
+      e.stopPropagation();
+      // Convert LoystarProduct to Product format for cart
+      const productForCart = {
+        id: item.id.toString(),
+        name: item.name,
+        description: item.description || '',
+        price: currentPrice,
+        images: [item.picture?.trim() || 'https://via.placeholder.com/150'],
+        category: item.category || 'General',
+        tags: [],
+        stock: item.stock || 1,
+        rating: 0,
+        reviewCount: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        isActive: true,
+      };
+      cartStore.addItem(productForCart, 1);
+    };
+
+    const handleToggleWishlist = (e: any) => {
+      e.stopPropagation();
+      wishlistStore.toggleWishlistItem(item);
+    };
     
     return (
       <TouchableOpacity
         style={styles.productCard}
         onPress={() => handleProductPress(item.id.toString())}
       >
-        <Image 
-          source={{ uri: item.picture?.trim() || 'https://via.placeholder.com/150' }} 
-          style={styles.productImage} 
-        />
+        <View style={styles.productImageContainer}>
+          <Image 
+            source={{ uri: item.picture?.trim() || 'https://via.placeholder.com/150' }} 
+            style={styles.productImage} 
+          />
+          <TouchableOpacity 
+            style={styles.wishlistButton}
+            onPress={handleToggleWishlist}
+          >
+            <Heart 
+              size={20} 
+              color={isInWishlist ? Colors.primary : Colors.textSecondary}
+              fill={isInWishlist ? Colors.primary : 'transparent'}
+            />
+          </TouchableOpacity>
+          {hasDiscount && (
+            <View style={styles.discountBadge}>
+              <Text style={styles.discountText}>
+                {Math.round(((originalPrice - currentPrice) / originalPrice) * 100)}% OFF
+              </Text>
+            </View>
+          )}
+        </View>
         <View style={styles.productInfo}>
           <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
           <View style={styles.priceContainer}>
@@ -132,6 +214,13 @@ const HomeScreen = observer(() => {
               +{item.tax_rate}% {item.tax_type}
             </Text>
           )}
+          <TouchableOpacity 
+            style={styles.addToCartButton}
+            onPress={handleAddToCart}
+          >
+            <ShoppingCart size={16} color={Colors.white} />
+            <Text style={styles.addToCartText}>Add to Cart</Text>
+          </TouchableOpacity>
         </View>
       </TouchableOpacity>
     );
@@ -287,9 +376,12 @@ const HomeScreen = observer(() => {
       },
       {
         title: 'All Products',
-        data: [productStore?.products || []],
+        data: [productStore?.allLoystarProducts || []],
         type: 'grid',
         showViewAll: false,
+        isLoading: productStore?.allProductsLoading,
+        error: productStore?.allProductsError,
+        emptyMessage: 'No products available',
       }
     );
 
@@ -301,6 +393,9 @@ const HomeScreen = observer(() => {
     productStore?.products,
     productStore?.farmOfftakeLoading,
     productStore?.farmOfftakeError,
+    productStore?.allLoystarProducts,
+    productStore?.allProductsLoading,
+    productStore?.allProductsError,
     authStore.loystarToken,
   ]);
 
@@ -474,17 +569,57 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
   },
   productCard: {
+    flex: 1,
     backgroundColor: Colors.white,
-    borderRadius: 8,
-    marginRight: Spacing.sm,
-    marginBottom: Spacing.sm,
-    width: 150,
+    borderRadius: 12,
+    marginHorizontal: Spacing.sm,
+    marginBottom: Spacing.md,
+    maxWidth: '46%',
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  productImageContainer: {
+    position: 'relative',
   },
   productImage: {
     width: '100%',
-    height: 120,
-    borderTopLeftRadius: 8,
-    borderTopRightRadius: 8,
+    height: 130,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+  },
+  wishlistButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: Colors.white,
+    borderRadius: 15,
+    width: 30,
+    height: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.41,
+    elevation: 2,
+  },
+  discountBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    backgroundColor: Colors.primary,
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  discountText: {
+    color: Colors.white,
+    fontSize: Typography.fontSize.xs,
+    fontFamily: Typography.fontFamily.bold,
+    fontWeight: '600',
   },
   productInfo: {
     padding: Spacing.sm,
@@ -516,6 +651,23 @@ const styles = StyleSheet.create({
     fontFamily: Typography.fontFamily.regular,
     color: Colors.textSecondary,
     marginTop: 2,
+  },
+  addToCartButton: {
+    backgroundColor: Colors.primary,
+    borderRadius: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+    gap: 4,
+  },
+  addToCartText: {
+    color: Colors.white,
+    fontSize: Typography.fontSize.xs,
+    fontFamily: Typography.fontFamily.medium,
+    fontWeight: '500',
   },
   sectionHeader: {
     flexDirection: 'row',

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,8 @@ import { Colors, Spacing, Typography } from '../../styles/globalStyles';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
 import { LoystarProduct } from '../../services/loystar/api';
+import ToastService from '../../utils/Toast';
+import AuthPrompt from '../../components/AuthPrompt';
 
 type WishlistScreenNavigationProp = StackNavigationProp<RootStackParamList>;
 
@@ -26,10 +28,18 @@ interface WishlistScreenProps {}
 const WishlistScreen: React.FC<WishlistScreenProps> = observer(() => {
   const navigation = useNavigation<WishlistScreenNavigationProp>();
   const { wishlistStore, cartStore, authStore } = useStores();
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false);
+
+  useEffect(() => {
+    // Check if user is authenticated when screen loads
+    if (authStore.requiresAuthentication()) {
+      setShowAuthPrompt(true);
+    }
+  }, [authStore]);
 
   const handleRemoveFromWishlist = (productId: number, productName: string) => {
     wishlistStore.removeFromWishlist(productId);
-    Alert.alert('Removed', `${productName} removed from wishlist`);
+    ToastService.success(`${productName} removed from wishlist`);
   };
 
   const handleCartPress = () => {
@@ -65,10 +75,10 @@ const WishlistScreen: React.FC<WishlistScreenProps> = observer(() => {
       };
       
       cartStore.addItem(cartProduct, 1);
-      Alert.alert('Success', `${product.name} added to cart!`);
+      ToastService.success(`${product.name} added to cart!`);
     } catch (err: any) {
       console.error('Error adding to cart:', err);
-      Alert.alert('Error', 'Failed to add item to cart');
+      ToastService.error('Failed to add item to cart');
     }
   };
 
@@ -107,26 +117,52 @@ const WishlistScreen: React.FC<WishlistScreenProps> = observer(() => {
     </View>
   );
 
-  const renderEmptyWishlist = () => (
-    <View style={styles.emptyContainer}>
-      <Heart size={64} color="#ccc" />
-      <Text style={styles.emptyTitle}>Your Wishlist is Empty</Text>
-      <Text style={styles.emptyText}>
-        Start adding products to your wishlist by tapping the heart icon on any product.
-      </Text>
-      <TouchableOpacity 
-        style={styles.shopButton}
-        onPress={() => navigation.navigate('Main', { screen: 'Home' })}
-      >
-        <Text style={styles.shopButtonText}>Start Shopping</Text>
-      </TouchableOpacity>
-    </View>
-  );
+  const renderEmptyWishlist = () => {
+    if (authStore.requiresAuthentication()) {
+      return (
+        <View style={styles.emptyContainer}>
+          <Heart size={64} color="#ccc" />
+          <Text style={styles.emptyTitle}>Sign In Required</Text>
+          <Text style={styles.emptyText}>
+            Please sign in to view and manage your wishlist items.
+          </Text>
+          <TouchableOpacity 
+            style={styles.shopButton}
+            onPress={() => setShowAuthPrompt(true)}
+          >
+            <Text style={styles.shopButtonText}>Sign In</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.emptyContainer}>
+        <Heart size={64} color="#ccc" />
+        <Text style={styles.emptyTitle}>Your Wishlist is Empty</Text>
+        <Text style={styles.emptyText}>
+          Start adding products to your wishlist by tapping the heart icon on any product.
+        </Text>
+        <TouchableOpacity 
+          style={styles.shopButton}
+          onPress={() => navigation.navigate('Main', { screen: 'Home' })}
+        >
+          <Text style={styles.shopButtonText}>Start Shopping</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
 
   return (
-    <View style={styles.container}>
-      <SafeAreaProvider style={{ backgroundColor: '#fff', position: 'relative', paddingTop: Constants.statusBarHeight }}>
-        <View style={styles.header}>
+    <SafeAreaProvider>
+      <AuthPrompt
+        visible={showAuthPrompt}
+        onClose={() => setShowAuthPrompt(false)}
+        returnTo={{ screen: 'Wishlist' }}
+        feature="your wishlist"
+      />
+      <View style={styles.container}>
+        <View style={[styles.header, { paddingTop: Constants.statusBarHeight }]}>
           <Text style={styles.headerTitle}>My Wishlist</Text>
 
           <View style={styles.rowContainer}>
@@ -160,8 +196,8 @@ const WishlistScreen: React.FC<WishlistScreenProps> = observer(() => {
             showsVerticalScrollIndicator={false}
           />
         )}
-      </SafeAreaProvider>
-    </View>
+      </View>
+    </SafeAreaProvider>
   );
 });
 

@@ -4,6 +4,8 @@ export * from './Product';
 export * from './Category';
 export * from './Order';
 export * from './Wallet';
+export * from './Delivery';
+export * from './Coupon';
 
 // Common types used across the application
 export interface PaginationParams {

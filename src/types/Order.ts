@@ -51,11 +51,13 @@ export interface ShippingAddress {
 }
 
 export interface PaymentMethod {
-  type: 'credit_card' | 'wallet' | 'paypal' | 'apple_pay' | 'google_pay' | 'cash_on_delivery';
+  type: 'credit_card' | 'wallet' | 'paypal' | 'apple_pay' | 'google_pay' | 'cash_on_delivery' | 'bank_transfer' | 'ussd';
   cardId?: string; // Reference to saved card
   walletId?: string; // Reference to wallet
   lastFour?: string; // Last four digits of card
   cardBrand?: string; // Visa, Mastercard, etc.
+  bankCode?: string; // For bank transfer
+  ussdCode?: string; // For USSD payments
 }
 
 export interface StatusUpdate {
