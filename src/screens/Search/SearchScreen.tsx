@@ -15,47 +15,87 @@ import { Colors, GlobalStyles, Spacing, Typography } from '../../styles/globalSt
 import { useStores } from '../../contexts/StoreContext';
 import { ArrowLeft, Search } from 'lucide-react-native';
 import { Product } from '../../types';
+import { LoystarAPI, LoystarProduct } from '../../services/loystar/api';
 import Constants from 'expo-constants';
 
 const SearchScreen = observer(() => {
   const navigation = useNavigation();
   const { productStore } = useStores();
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<Product[]>([]);
+  const [searchResults, setSearchResults] = useState<(Product | LoystarProduct)[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSearch = async (query: string) => {
     setSearchQuery(query);
+    setError(null);
+    
     if (query.trim().length > 2) {
-      // Filter products based on search query
-      const results = productStore.products.filter(product =>
-        product.name.toLowerCase().includes(query.toLowerCase()) ||
-        product.description?.toLowerCase().includes(query.toLowerCase())
-      );
-      setSearchResults(results);
+      setIsLoading(true);
+      try {
+        // Search local products
+        const localResults = productStore.products.filter(product =>
+          product.name.toLowerCase().includes(query.toLowerCase()) ||
+          product.description?.toLowerCase().includes(query.toLowerCase())
+        );
+
+        // Search Loystar products
+        const loystarResults = await LoystarAPI.searchProducts(query.trim());
+        
+        // Combine results
+        const combinedResults = [...localResults, ...loystarResults];
+        setSearchResults(combinedResults);
+      } catch (err) {
+        console.error('Search error:', err);
+        setError('Failed to search products. Please try again.');
+        // Fallback to local search only
+        const localResults = productStore.products.filter(product =>
+          product.name.toLowerCase().includes(query.toLowerCase()) ||
+          product.description?.toLowerCase().includes(query.toLowerCase())
+        );
+        setSearchResults(localResults);
+      } finally {
+        setIsLoading(false);
+      }
     } else {
       setSearchResults([]);
     }
   };
 
-  const handleProductPress = (productId: string) => {
-    navigation.navigate('ProductDetails', { productId });
+  const handleProductPress = (productId: string | number) => {
+    navigation.navigate('ProductDetails', { productId: String(productId) });
   };
 
-  const renderProduct = ({ item }: { item: any }) => (
-    <TouchableOpacity
-      style={styles.productCard}
-      onPress={() => handleProductPress(item.id)}
-    >
-      <Image 
-        source={{ uri: item.image || 'https://via.placeholder.com/150' }} 
-        style={styles.productImage} 
-      />
-      <View style={styles.productInfo}>
-        <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
-        <Text style={styles.productPrice}>₦{item.price}</Text>
-      </View>
-    </TouchableOpacity>
-  );
+  const isLoystarProduct = (item: Product | LoystarProduct): item is LoystarProduct => {
+    return 'merchant_product_category_id' in item;
+  };
+
+  const renderProduct = ({ item }: { item: Product | LoystarProduct }) => {
+    const isLoystar = isLoystarProduct(item);
+    const productId = isLoystar ? item.id : item.id;
+    const productName = isLoystar ? item.name : item.name;
+    const productPrice = isLoystar ? item.price : item.price;
+    const productImage = isLoystar ? item.picture : (item as Product).images[0];
+
+    return (
+      <TouchableOpacity
+        style={styles.productCard}
+        onPress={() => handleProductPress(productId)}
+      >
+        <Image 
+          source={{ uri: productImage || 'https://via.placeholder.com/150' }} 
+          style={styles.productImage} 
+        />
+        <View style={styles.productInfo}>
+          <Text style={styles.productName} numberOfLines={2}>{productName}</Text>
+          <Text style={styles.productPrice}>₦{productPrice}</Text>
+          {isLoystar && (
+            <Text style={styles.productSource}>Loystar</Text>
+          )}
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={[styles.container]}>
@@ -82,7 +122,19 @@ const SearchScreen = observer(() => {
         </View>
 
         <View style={styles.content}>
-          {searchQuery.length > 0 && searchResults.length === 0 && (
+          {error && (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
+
+          {isLoading && (
+            <View style={styles.loadingContainer}>
+              <Text style={styles.loadingText}>Searching products...</Text>
+            </View>
+          )}
+
+          {searchQuery.length > 0 && searchResults.length === 0 && !isLoading && (
             <View style={styles.emptyState}>
               <Text style={styles.emptyText}>No products found for "{searchQuery}"</Text>
             </View>
@@ -92,7 +144,7 @@ const SearchScreen = observer(() => {
             <FlatList
               data={searchResults}
               renderItem={renderProduct}
-              keyExtractor={(item) => item.id}
+              keyExtractor={(item) => String(item.id)}
               numColumns={2}
               contentContainerStyle={styles.resultsContainer}
               showsVerticalScrollIndicator={false}
@@ -181,6 +233,34 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.sm,
     fontFamily: Typography.fontFamily.bold,
     color: Colors.primary,
+  },
+  productSource: {
+    fontSize: Typography.fontSize.xs,
+    fontFamily: Typography.fontFamily.regular,
+    color: Colors.textSecondary,
+    marginTop: Spacing.xs,
+    fontStyle: 'italic',
+  },
+  errorContainer: {
+    backgroundColor: '#ffebee',
+    padding: Spacing.md,
+    borderRadius: 8,
+    marginVertical: Spacing.sm,
+  },
+  errorText: {
+    fontSize: Typography.fontSize.sm,
+    fontFamily: Typography.fontFamily.regular,
+    color: '#c62828',
+    textAlign: 'center',
+  },
+  loadingContainer: {
+    padding: Spacing.lg,
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: Typography.fontSize.base,
+    fontFamily: Typography.fontFamily.regular,
+    color: Colors.textSecondary,
   },
   emptyState: {
     flex: 1,

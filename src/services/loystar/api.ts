@@ -259,6 +259,96 @@ export class LoystarAPI {
     }
   }
 
+  static async searchProducts(
+    productName?: string,
+    page: number = 1,
+    pageSize: number = 10
+  ): Promise<LoystarProduct[]> {
+    if (!this.baseURL) {
+      throw new Error('Loystar base URL is not configured');
+    }
+
+    // if (!this.authToken) {
+    //   throw new Error('No authentication token available. Please login first.');
+    // }
+
+    let endpoint = `/search_product/${productName}`;
+
+    const headers = {
+      'token': 'AsAVo8qbTfNbSaWHFt91fg',
+      'client': 'qEAX9J5cVY7iQ3jvqEZMAQ',
+      'uid': 'myfoodangels@gmail.com',
+      'token-type': 'Bearer',
+      'authorization': 'Bearer eyJhY2Nlc3MtdG9rZW4iOiJBc0FWbzhxYlRmTmJTYVdIRnQ5MWZnIiwidG9rZW4tdHlwZSI6IkJlYXJlciIsImNsaWVudCI6InFFQVg5SjVjVlk3aVEzanZxRVpNQVEiLCJleHBpcnkiOiIxODE5OTE1NjA5IiwidWlkIjoibXlmb29kYW5nZWxzQGdtYWlsLmNvbSJ9',
+      'expiry': '1819915609',
+    };
+
+    try {
+      console.log('Fetching Loystar products:', { endpoint, productName, page, pageSize });
+      
+      const response = await fetch(`${this.baseURL}${endpoint}`, {
+        method: 'GET',
+        headers,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Loystar products fetch error:', response.status, errorText);
+        throw new Error(`Failed to fetch products: ${response.status} ${errorText}`);
+      }
+
+      const data: LoystarProduct[] = await response.json();
+      console.log('Loystar products fetched successfully:', data);
+      
+      return data;
+    } catch (error) {
+      console.error('Loystar products fetch error:', error);
+      throw error;
+    }
+  }
+
+  static async fetchAllProducts(
+    page: number = 1,
+    pageSize: number = 100
+  ): Promise<LoystarProduct[]> {
+    if (!this.baseURL) {
+      throw new Error('Loystar base URL is not configured');
+    }
+
+    if (!this.authToken) {
+      throw new Error('No authentication token available. Please login first.');
+    }
+
+    let endpoint = `/get_products_of_merchant_urewards?page[number]=${page}&page[size]=${pageSize}`;
+
+    const headers = {
+      'authorization': `Bearer ${this.authToken}`,
+    };
+
+    try {
+      console.log('Fetching Loystar products:', { endpoint, page, pageSize });
+      
+      const response = await fetch(`${this.baseURL}${endpoint}`, {
+        method: 'GET',
+        headers,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Loystar products fetch error:', response.status, errorText);
+        throw new Error(`Failed to fetch products: ${response.status} ${errorText}`);
+      }
+
+      const data: LoystarProduct[] = await response.json();
+      console.log('Loystar products fetched successfully:', data);
+      
+      return data;
+    } catch (error) {
+      console.error('Loystar products fetch error:', error);
+      throw error;
+    }
+  }
+
   // Fetch Farm Offtake products (category_id = 7486)
   static async fetchFarmOfftakeProducts(page: number = 1, pageSize: number = 6): Promise<LoystarProduct[]> {
     return this.fetchProducts(7486, page, pageSize);

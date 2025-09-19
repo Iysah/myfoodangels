@@ -14,8 +14,11 @@ import { useNavigation } from '@react-navigation/native';
 import { Colors, GlobalStyles, Spacing, Typography } from '../../styles/globalStyles';
 import { useStores } from '../../contexts/StoreContext';
 import AuthPrompt from '../../components/AuthPrompt';
-import { ArrowBigRight, ArrowRight } from 'lucide-react-native';
 import Constants from 'expo-constants';
+import UserIcon from '../../../assets/icons/user';
+import WalletsIcon from '../../../assets/icons/wallets';
+import FaqsIcon from '../../../assets/icons/faqs';
+import ReferIcon from '../../../assets/icons/refer';
 
 const ProfileScreen = observer(() => {
   const navigation = useNavigation();
@@ -34,33 +37,27 @@ const ProfileScreen = observer(() => {
     {
       id: 'edit-profile',
       title: 'Edit Profile',
-      icon: '✏️',
+      icon: UserIcon,
       onPress: () => navigation.navigate('EditProfile'),
     },
     {
       id: 'wallet',
       title: 'Wallet & Cards',
-      icon: '💳',
+      icon: WalletsIcon,
       onPress: () => navigation.navigate('Wallet'),
     },
     {
       id: 'refer',
       title: 'Refer and Earn',
-      icon: '🔔',
+      icon: ReferIcon,
       onPress: () => navigation.navigate('Refer'),
     },
     {
       id: 'faqs',
       title: 'FAQS',
-      icon: '🔔',
+      icon: FaqsIcon,
       onPress: () => navigation.navigate('Faqs'),
     }, 
-    {
-      id: 'about',
-      title: 'About',
-      icon: '🚪',
-      onPress: () => navigation.navigate('About'),
-    }
   ];
 
   const renderMenuItem = (item: any) => (
@@ -70,7 +67,7 @@ const ProfileScreen = observer(() => {
       onPress={item.onPress}
     >
       <View style={styles.menuItemLeft}>
-        <Text style={styles.menuIcon}>{item.icon}</Text>
+        <item.icon style={styles.menuIcon} />
         <Text style={styles.menuTitle}>{item.title}</Text>
       </View>
 
@@ -114,6 +111,7 @@ const ProfileScreen = observer(() => {
         <AuthPrompt
           visible={showAuthPrompt}
           onClose={() => setShowAuthPrompt(false)}
+          returnTo={{ screen: 'Profile' }}
           feature="your profile"
           message="Sign in to access your profile, manage settings, and view your account information."
         />
@@ -236,6 +234,7 @@ const styles = StyleSheet.create({
 
     borderWidth: 1,
     borderColor: Colors.border,
+    borderRadius: 8,
   },
   menuItemLeft: {
     flexDirection: 'row',

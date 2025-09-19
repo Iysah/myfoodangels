@@ -27,7 +27,6 @@ const TrackOrdersScreen = observer(() => {
       setShowAuthPrompt(true);
     } else {
       // Load user orders for authenticated users
-      setShowAuthPrompt(false);
       if (orderStore && authStore.user) {
         orderStore.fetchUserOrders(authStore.user.id);
       }

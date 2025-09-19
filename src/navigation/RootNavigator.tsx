@@ -21,6 +21,8 @@ import AboutScreen from '../screens/Profile/AboutScreen';
 import ReferScreen from '../screens/Profile/ReferScreen';
 import FaqsScreen from '../screens/Profile/FaqsScreen';
 import WalletScreen from '../screens/Wallet/WalletScreen';
+import TopUpScreen from '../screens/Wallet/TopUpScreen';
+import AddCardScreen from '../screens/Wallet/AddCardScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
 
@@ -75,15 +77,15 @@ const RootNavigator = observer(() => {
         <Stack.Screen name="Notifications" component={NotificationsScreen} />
         <Stack.Screen name="EditProfile" component={EditProfileScreen} />
         <Stack.Screen name="Likes" component={LikesScreen} />
-        <Stack.Screen name="About" component={AboutScreen} />
         <Stack.Screen name="Refer" component={ReferScreen} />
         <Stack.Screen name="Faqs" component={FaqsScreen} />
         <Stack.Screen name="Wallet" component={WalletScreen} />
-        {/* 
-        <Stack.Screen name="OrderConfirmation" component={OrderConfirmationScreen} />
-        <Stack.Screen name="OrderDetails" component={OrderDetailsScreen} />
         <Stack.Screen name="AddCard" component={AddCardScreen} />
         <Stack.Screen name="TopUp" component={TopUpScreen} />
+        {/* 
+        <Stack.Screen name="OrderConfirmation" component={OrderConfirmationScreen} />
+        <Stack.Screen name="About" component={AboutScreen} />
+        <Stack.Screen name="OrderDetails" component={OrderDetailsScreen} />
         <Stack.Screen name="Settings" component={SettingsScreen} />
         <Stack.Screen name="Reviews" component={ReviewsScreen} />
         <Stack.Screen name="MakeOffer" component={MakeOfferScreen} />

@@ -19,6 +19,11 @@ class ProductStore {
   farmOfftakeLoading: boolean = false;
   farmOfftakeError: string | null = null;
   farmOfftakeMeta: any = null;
+  
+  // Loystar All Products (random 10 for home screen)
+  allLoystarProducts: LoystarProduct[] = [];
+  allProductsLoading: boolean = false;
+  allProductsError: string | null = null;
 
   constructor() {
     makeAutoObservable(this);
@@ -344,6 +349,39 @@ class ProductStore {
       runInAction(() => {
         this.farmOfftakeError = error.message || 'Failed to fetch Farm Offtake products';
         this.farmOfftakeLoading = false;
+      });
+      throw error;
+    }
+  };
+
+  // Fetch all products from Loystar and get random 10 for home screen
+  fetchAllLoystarProducts = async (pageSize: number = 50) => {
+    this.allProductsLoading = true;
+    this.allProductsError = null;
+    
+    try {
+      console.log('Fetching all Loystar products for home screen...');
+      
+      // Fetch a larger set of products to choose random ones from
+      const products = await LoystarAPI.fetchProducts(undefined, 1, pageSize);
+      
+      // Shuffle the array and take first 10
+      const shuffled = [...products].sort(() => 0.5 - Math.random());
+      const randomProducts = shuffled.slice(0, 10);
+      
+      runInAction(() => {
+        this.allLoystarProducts = randomProducts;
+        this.allProductsLoading = false;
+        this.allProductsError = null;
+      });
+      
+      console.log(`Fetched ${randomProducts.length} random products for home screen`);
+      return randomProducts;
+    } catch (error: any) {
+      console.error('Error fetching all Loystar products:', error);
+      runInAction(() => {
+        this.allProductsError = error.message || 'Failed to fetch products';
+        this.allProductsLoading = false;
       });
       throw error;
     }

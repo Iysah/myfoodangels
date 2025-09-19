@@ -26,8 +26,10 @@ const RegisterScreen = observer(() => {
   const { authStore } = useStores();
   const navigation = useNavigation();
   const route = useRoute<RegisterScreenRouteProp>();
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -38,25 +40,60 @@ const RegisterScreen = observer(() => {
 
   const handleRegister = async () => {
     // Validate inputs
-    if (!name || !email || !password || !confirmPassword) {
-      ToastService.error('Error', 'Please fill in all fields');
+    if (!firstName || !lastName || !email || !phoneNumber || !password || !confirmPassword) {
+      ToastService.error('Please fill in all fields');
       return;
     }
 
     if (password !== confirmPassword) {
-      ToastService.error('Error', 'Passwords do not match');
+      ToastService.error('Passwords do not match');
       return;
     }
 
     if (password.length < 6) {
-      ToastService.error('Error', 'Password must be at least 6 characters long');
+      ToastService.error('Password must be at least 6 characters long');
+      return;
+    }
+
+    // Validate phone number (basic validation)
+    if (phoneNumber.length < 10) {
+      ToastService.error('Please enter a valid phone number');
       return;
     }
 
     setIsLoading(true);
     try {
-      await authStore.register(email, password, { displayName: name });
-      ToastService.success('Welcome!', 'Your account has been created successfully');
+      // First register with Loystar API
+      const loystarResponse = await fetch('https://api.loystar.co/api/v2/add_user_for_merchant/22244', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          data: {
+            first_name: firstName,
+            last_name: lastName,
+            email: email,
+            phone_number: phoneNumber,
+            date_of_birth: "NIL",
+            sex: "NIL",
+            local_db_created_at: "NIL",
+            address_line1: "NIL",
+            address_line2: "NIL",
+            postcode: "NIL",
+            state: "NIL",
+            country: "NIL"
+          }
+        })
+      });
+
+      if (!loystarResponse.ok) {
+        throw new Error('Failed to register with Loystar');
+      }
+
+      // Then register with Firebase
+      await authStore.register(email, password, { displayName: `${firstName} ${lastName}` });
+      ToastService.success('Your account has been created successfully');
       
       // Navigate back if returnTo is provided, otherwise let root navigator handle it
       if (returnTo) {
@@ -126,12 +163,24 @@ const RegisterScreen = observer(() => {
           <Text style={styles.subtitle}>Sign up to get started</Text>
 
           <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Full Name</Text>
+            <Text style={styles.inputLabel}>First Name</Text>
             <TextInput
               style={styles.input}
-              placeholder="Enter your full name"
-              value={name}
-              onChangeText={setName}
+              placeholder="Enter your first name"
+              value={firstName}
+              onChangeText={setFirstName}
+              autoCapitalize="words"
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Last Name</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter your last name"
+              value={lastName}
+              onChangeText={setLastName}
+              autoCapitalize="words"
             />
           </View>
 
@@ -144,6 +193,17 @@ const RegisterScreen = observer(() => {
               onChangeText={setEmail}
               keyboardType="email-address"
               autoCapitalize="none"
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Phone Number</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter your phone number"
+              value={phoneNumber}
+              onChangeText={setPhoneNumber}
+              keyboardType="phone-pad"
             />
           </View>
 

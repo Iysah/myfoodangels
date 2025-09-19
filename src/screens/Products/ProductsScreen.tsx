@@ -77,7 +77,7 @@ const ProductsScreen: React.FC<ProductsScreenProps> = observer(() => {
     } catch (err: any) {
       console.error('Error loading products:', err);
       setError(err.message || 'Failed to load products');
-      Alert.alert('Error', 'Failed to load products. Please try again.');
+      ToastService.error('Failed to load products. Please try again.');
     } finally {
       setIsLoading(false);
       setIsLoadingMore(false);
@@ -129,10 +129,10 @@ const ProductsScreen: React.FC<ProductsScreenProps> = observer(() => {
       };
       
       cartStore.addItem(cartProduct, 1);
-      Alert.alert('Success', `${product.name} added to cart!`);
+      ToastService.success(`${product.name} added to cart!`);
     } catch (err: any) {
       console.error('Error adding to cart:', err);
-      Alert.alert('Error', 'Failed to add item to cart');
+      ToastService.error('Failed to add item to cart');
     }
   };
 
