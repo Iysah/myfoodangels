@@ -43,5 +43,6 @@ ios/
 android/
 
 google-services.json
-myfoodangels-google-services.json
 GoogleService-Info.plist
+.easignore
+eas.json

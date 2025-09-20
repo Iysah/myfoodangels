@@ -4,6 +4,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useCallback, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Toast from 'react-native-toast-message';
 import RootNavigator from './src/navigation/RootNavigator';
 import { Colors, Spacing } from './src/styles/globalStyles';
 import { StoreProvider } from './src/contexts/StoreContext';
@@ -46,6 +47,7 @@ export default function App() {
       <StoreProvider>
         <StatusBar style="auto" />
         <RootNavigator />
+        <Toast />
       </StoreProvider>
     </SafeAreaProvider>
   );
