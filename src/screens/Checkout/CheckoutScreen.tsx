@@ -10,6 +10,7 @@ import {
   Modal,
   ActivityIndicator,
 } from 'react-native';
+import { WebView } from 'react-native-webview';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Dropdown } from 'react-native-element-dropdown';
 import { observer } from 'mobx-react-lite';
@@ -24,6 +25,9 @@ import { couponService } from '../../services/firebase/couponService';
 import { useStores } from '../../contexts/StoreContext';
 import { Wallet, CreditCard, Landmark, Smartphone } from 'lucide-react-native';
 import Constants from 'expo-constants';
+import PaystackService from '../../services/paystack/PaystackService';
+import { setDocument } from '../../services/firebase/firestore';
+import { LoystarAPI } from '../../services/loystar/api';
 
 const CheckoutScreen = observer(() => {
   const navigation = useNavigation();
@@ -57,6 +61,13 @@ const CheckoutScreen = observer(() => {
   // Payment Modal State
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedPaymentOption, setSelectedPaymentOption] = useState<string>('');
+  
+  // Paystack WebView State
+  const [showPaymentWebView, setShowPaymentWebView] = useState(false);
+  const [paymentUrl, setPaymentUrl] = useState('');
+  const [currentOrderData, setCurrentOrderData] = useState<any>(null);
+  const [currentOrderId, setCurrentOrderId] = useState('');
+  const [currentPaymentReference, setCurrentPaymentReference] = useState('');
   
   // Delivery Dropdown State
   const [isFocus, setIsFocus] = useState(false);
@@ -101,6 +112,8 @@ const CheckoutScreen = observer(() => {
         phoneNumber: authStore.user?.phoneNumber || prev.phoneNumber,
       }));
     }
+    const publicKey = process.env.EXPO_PUBLIC_PAYSTACK_PUBLIC_TEST_KEY;
+    console.log('Paystack public key:', publicKey);
   }, [authStore.user]);
 
   // Load delivery locations
@@ -191,13 +204,12 @@ const CheckoutScreen = observer(() => {
   };
 
   // Payment handling
-  const handlePaymentSelection = (paymentType: string) => {
+  const handlePaymentSelection = async (paymentType: string) => {
     setSelectedPaymentOption(paymentType);
     setShowPaymentModal(false);
     
-    // Here you would integrate with Paystack
-    // For now, we'll simulate the payment process
-    handlePlaceOrder();
+    // Process payment based on selected type
+    await processPayment(paymentType);
   };
 
   const handlePlaceOrder = async () => {
@@ -223,18 +235,58 @@ const CheckoutScreen = observer(() => {
       return;
     }
 
-    // Show payment modal instead of processing directly
-    if (!selectedPaymentOption) {
-      setShowPaymentModal(true);
-      return;
-    }
+    // Show payment modal to select payment method
+    setShowPaymentModal(true);
+  };
 
+  const processPayment = async (paymentType: string) => {
     setIsProcessing(true);
 
+    // Validate required data before creating order
+    const validateOrderData = () => {
+      const errors = [];
+      
+      if (!authStore.user?.id) {
+        errors.push('User ID is required');
+      }
+      
+      if (!cartStore.items || cartStore.items.length === 0) {
+        errors.push('Cart items are required');
+      }
+      
+      if (!billingAddress.fullName) {
+        errors.push('Full name is required');
+      }
+      
+      if (!billingAddress.deliveryAddress) {
+        errors.push('Delivery address is required');
+      }
+      
+      if (!billingAddress.phoneNumber) {
+        errors.push('Phone number is required');
+      }
+      
+      return errors;
+    };
+
     try {
-      // Validate payment method
-      if (selectedPaymentMethod === 'wallet') {
-        if (!walletStore.wallet || walletStore.wallet.balance < cartStore.total) {
+      if (!authStore.user) {
+        throw new Error('User not authenticated');
+      }
+
+      // Validate data first
+      const validationErrors = validateOrderData();
+      if (validationErrors.length > 0) {
+        throw new Error(`Validation failed: ${validationErrors.join(', ')}`);
+      }
+
+
+      // Calculate final order totals
+      const orderTotals = calculateOrderTotal();
+
+      // Validate wallet payment
+      if (paymentType === 'wallet') {
+        if (!walletStore.wallet || walletStore.wallet.balance < orderTotals.total) {
           Alert.alert(
             'Insufficient Balance',
             'Your wallet balance is insufficient. Please top up your wallet or choose a different payment method.',
@@ -254,16 +306,9 @@ const CheckoutScreen = observer(() => {
         }
       }
 
-      if (!authStore.user) {
-        throw new Error('User not authenticated');
-      }
-
-      // Calculate final order totals
-      const orderTotals = calculateOrderTotal();
-
-      // Create order
+      // Create order data
       const orderData = {
-        userId: authStore.user.id,
+        userId: authStore.user?.id || '',
         items: cartStore.items.map((item: CartItem) => ({
           productId: item.product.id,
           productName: item.product.name,
@@ -273,15 +318,14 @@ const CheckoutScreen = observer(() => {
           totalPrice: (item.product.salePrice || item.product.price) * item.quantity,
           options: item.selectedOptions,
         })),
-
         subtotal: orderTotals.subtotal,
         tax: orderTotals.tax,
         shippingCost: orderTotals.deliveryFee,
         discount: orderTotals.discount,
         total: orderTotals.total,
         paymentMethod: {
-          type: selectedPaymentOption as 'wallet' | 'credit_card' | 'bank_transfer' | 'ussd',
-          walletId: selectedPaymentOption === 'wallet' ? walletStore.wallet?.id : undefined,
+          type: paymentType as 'wallet' | 'credit_card' | 'bank_transfer' | 'ussd',
+          walletId: paymentType === 'wallet' ? walletStore.wallet?.id : undefined,
         },
         shippingAddress: {
           name: billingAddress.fullName,
@@ -306,29 +350,372 @@ const CheckoutScreen = observer(() => {
         status: 'pending' as const,
       };
 
+      // Create order first
       const orderId = await orderStore.createOrder(orderData);
 
-      // Process payment
-      if (selectedPaymentMethod === 'wallet' && walletStore.wallet) {
-        // Use the new wallet payment processing method
+      // Process payment based on type
+      let paymentSuccess = false;
+      let paymentReference = '';
+
+      if (paymentType === 'wallet' && walletStore.wallet) {
+        // Process wallet payment
         await walletStore.processWalletPayment(
           walletStore.wallet.id,
           orderData.total,
           orderId,
           `Order payment for ${cartStore.itemCount} items`
         );
+        paymentSuccess = true;
+        paymentReference = `wallet_${orderId}`;
+      } else {
+        // Process Paystack payment (card, bank transfer, USSD)
+        const paymentResult = await processPaystackPayment(paymentType, orderData, orderId);
+        
+        if (paymentResult.pending) {
+          // Payment is pending (WebView opened) - don't continue processing here
+          // The completion will be handled in the WebView callback
+          setIsProcessing(false);
+          return;
+        }
+        
+        paymentSuccess = paymentResult.success;
+        paymentReference = paymentResult.reference;
+        
+        if (!paymentSuccess) {
+          throw new Error(paymentResult.error || 'Payment failed');
+        }
       }
 
-      // Clear cart
-      cartStore.clearCart();
+      if (paymentSuccess) {
+        // Save order to Firebase
+        await saveOrderToFirebase(orderData, orderId, paymentReference);
+        
+        // Send to Loystar for loyalty points
+        await sendOrderToLoystar(orderData, orderId);
 
-      // Navigate to order confirmation
-      navigation.navigate('OrderConfirmation', { orderId });
+        // Clear cart
+        cartStore.clearCart();
+
+        // Navigate to order confirmation
+        navigation.navigate('OrderConfirmation', { orderId });
+      } else {
+        throw new Error('Payment failed');
+      }
 
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to place order. Please try again.');
+      Alert.alert('Error', error.message || 'Failed to process payment. Please try again.');
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  // Helper function to process Paystack payments
+  const processPaystackPayment = async (paymentType: string, orderData: any, orderId: string) => {
+    try {
+      const paystackService = PaystackService.getInstance();
+      const reference = paystackService.generateReference();
+      
+      const paymentData = paystackService.preparePaymentData(
+        authStore.user?.email || billingAddress.email,
+        orderData.total,
+        'NGN',
+        reference,
+        {
+          orderId,
+          paymentType,
+          customerName: billingAddress.fullName,
+          phoneNumber: billingAddress.phoneNumber,
+        }
+      );
+
+      // Set payment channels based on payment type
+      if (paymentType === 'credit_card') {
+        paymentData.channels = ['card'];
+      } else if (paymentType === 'bank_transfer') {
+        paymentData.channels = ['bank_transfer'];
+      } else if (paymentType === 'ussd') {
+        paymentData.channels = ['ussd'];
+      }
+
+      // Initialize Paystack transaction
+      const initResponse = await paystackService.initializeTransaction(paymentData);
+      
+      if (!initResponse.status) {
+        throw new Error(initResponse.message || 'Failed to initialize payment');
+      }
+
+      // Store order data for completion after payment
+      setCurrentOrderData(orderData);
+      setCurrentOrderId(orderId);
+      setCurrentPaymentReference(reference);
+      
+      // Open WebView with Paystack payment URL
+      setPaymentUrl(initResponse.data.authorization_url);
+      setShowPaymentWebView(true);
+
+      // Return pending status - actual completion happens in WebView callback
+      return {
+        success: false, // Will be updated after WebView completion
+        reference: reference,
+        transactionId: initResponse.data.reference,
+        pending: true,
+      };
+    } catch (error: any) {
+      console.error('Paystack payment error:', error);
+      return {
+        success: false,
+        reference: '',
+        error: error.message,
+      };
+    }
+  };
+
+  // Handle WebView navigation for payment completion
+  const handleWebViewNavigationStateChange = async (navState: any) => {
+    const { url } = navState;
+    
+    // Check if payment was successful (Paystack redirects to success URL)
+    if (url.includes('success') || url.includes('callback')) {
+      try {
+        // Verify payment with Paystack
+        const paystackService = PaystackService.getInstance();
+        const verificationResponse = await paystackService.verifyTransaction(currentPaymentReference);
+        
+        if (verificationResponse.status && verificationResponse.data.status === 'success') {
+          // Payment successful - complete the order
+          await completePaymentAndOrder();
+        } else {
+          // Payment failed
+          handlePaymentFailure('Payment verification failed');
+        }
+      } catch (error: any) {
+        console.error('Payment verification error:', error);
+        handlePaymentFailure(error.message);
+      }
+    } else if (url.includes('cancel') || url.includes('failed')) {
+      // Payment was cancelled or failed
+      handlePaymentFailure('Payment was cancelled or failed');
+    }
+  };
+
+  // Complete payment and order after successful Paystack payment
+  const completePaymentAndOrder = async () => {
+    try {
+      setShowPaymentWebView(false);
+      setIsProcessing(true);
+
+      // Save order to Firebase
+      await saveOrderToFirebase(currentOrderData, currentOrderId, currentPaymentReference);
+      
+      // Send order to Loystar
+      await sendOrderToLoystar(currentOrderData, currentOrderId);
+      
+      // Clear cart and navigate to confirmation
+      cartStore.clearCart();
+      setIsProcessing(false);
+      
+      Alert.alert(
+        'Payment Successful!',
+        'Your order has been placed successfully.',
+        [
+          {
+            text: 'OK',
+            onPress: () => navigation.navigate('OrderConfirmation', { orderId: currentOrderId }),
+          },
+        ]
+      );
+    } catch (error: any) {
+      console.error('Order completion error:', error);
+      setIsProcessing(false);
+      Alert.alert('Error', 'Payment was successful but there was an issue completing your order. Please contact support.');
+    }
+  };
+
+  // Handle payment failure
+  const handlePaymentFailure = (errorMessage: string) => {
+    setShowPaymentWebView(false);
+    setIsProcessing(false);
+    Alert.alert(
+      'Payment Failed',
+      errorMessage || 'Your payment could not be processed. Please try again.',
+      [
+        {
+          text: 'OK',
+          onPress: () => setShowPaymentModal(true), // Show payment modal again
+        },
+      ]
+    );
+  };
+
+  // Helper function to save order to Firebase
+  const saveOrderToFirebase = async (orderData: any, orderId: string, paymentReference: string) => {
+    try {
+      // Transform to match Firebase structure
+      const firebaseOrder = {
+        orderId: orderId || '',
+        paymentReference: paymentReference || '',
+        status: 'success',
+        userId: authStore.user?.id || '',
+        email: authStore.user?.email || billingAddress.email || '',
+        name: billingAddress.fullName || '',
+        firstName: billingAddress.fullName?.split(' ')[0] || '',
+        lastName: billingAddress.fullName?.split(' ').slice(1).join(' ') || '',
+        phone: billingAddress.phoneNumber || '',
+        address: billingAddress.deliveryAddress || '',
+        totalAmount: orderData.total || 0,
+        cartItems: orderData.items?.map((item: any) => {
+          // Create a clean item object without undefined values
+          const cleanItem: any = {
+            id: item.productId || '',
+            name: item.productName || '',
+            image: item.productImage || '',
+            quantity: item.quantity || 0,
+            price: item.price || 0,
+            totalPrice: item.totalPrice || 0,
+          };
+
+          // Only add optional fields if they have valid values
+          if (item.loystarId !== undefined && item.loystarId !== null) {
+            cleanItem.loystarId = item.loystarId;
+          }
+          if (item.category && typeof item.category === 'object' && Object.keys(item.category).length > 0) {
+            cleanItem.category = item.category;
+          }
+          if (item.chosenUnit) {
+            cleanItem.chosenUnit = item.chosenUnit;
+          }
+          if (item.costprice !== undefined && item.costprice !== null) {
+            cleanItem.costprice = item.costprice;
+          }
+          if (item.createdDate) {
+            cleanItem.createdDate = item.createdDate;
+          } else {
+            cleanItem.createdDate = new Date().toISOString();
+          }
+          if (item.created_date) {
+            cleanItem.created_date = item.created_date;
+          } else {
+            cleanItem.created_date = new Date().toISOString();
+          }
+          if (item.desc) {
+            cleanItem.desc = item.desc;
+          }
+          if (item.inStock !== undefined) {
+            cleanItem.inStock = item.inStock;
+          } else {
+            cleanItem.inStock = true;
+          }
+          if (item.loystarUnit) {
+            cleanItem.loystarUnit = item.loystarUnit;
+          }
+          if (item.loystarUnitId !== undefined && item.loystarUnitId !== null) {
+            cleanItem.loystarUnitId = item.loystarUnitId;
+          }
+          if (item.loystarUnitQty !== undefined && item.loystarUnitQty !== null) {
+            cleanItem.loystarUnitQty = item.loystarUnitQty;
+          }
+          if (item.merchant_id !== undefined && item.merchant_id !== null) {
+            cleanItem.merchant_id = item.merchant_id;
+          }
+          if (item.nameYourPrice !== undefined) {
+            cleanItem.nameYourPrice = item.nameYourPrice;
+          }
+          if (item.no_of_items !== undefined && item.no_of_items !== null) {
+            cleanItem.no_of_items = item.no_of_items;
+          }
+          if (item.rating !== undefined && item.rating !== null) {
+            cleanItem.rating = item.rating;
+          }
+          if (item.ratingCount !== undefined && item.ratingCount !== null) {
+            cleanItem.ratingCount = item.ratingCount;
+          }
+          if (item.slug) {
+            cleanItem.slug = item.slug;
+          }
+          if (item.units && Array.isArray(item.units)) {
+            cleanItem.units = item.units;
+          }
+          if (item.options) {
+            cleanItem.options = item.options;
+          }
+
+          return cleanItem;
+        }) || [],
+        created_date: new Date(),
+      };
+
+      await setDocument('orders', orderId, firebaseOrder);
+      console.log('Order saved to Firebase successfully');
+    } catch (error: any) {
+      console.error('Failed to save order to Firebase:', error);
+      throw new Error('Failed to save order details');
+    }
+  };
+
+  // Helper function to send order to Loystar
+  const sendOrderToLoystar = async (orderData: any, orderId: string) => {
+    try {
+      // Transform order data to Loystar format
+      const loystarData = {
+        sale: {
+          is_paid_with_cash: orderData.paymentMethod.type === 'wallet',
+          is_paid_with_card: orderData.paymentMethod.type === 'credit_card',
+          is_paid_with_mobile: false,
+          is_paid_with_mtransfer: orderData.paymentMethod.type === 'bank_transfer',
+          user_id: authStore.loystarData?.customer?.id || 0,
+          business_branch_id: null,
+          transactions: orderData.items.map((item: any) => ({
+            id: parseInt(item.productId),
+            merchant_product_category_id: 192, // Default category
+            name: item.productName,
+            description: null,
+            price: item.price.toString(),
+            cost_price: null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            picture: item.productImage,
+            merchant_id: parseInt(process.env.EXPO_PUBLIC_MERCHANT_ID || '543'),
+            deleted: false,
+            merchant_loyalty_program_id: 493,
+            track_inventory: false,
+            sku: null,
+            unit: null,
+            quantity: item.quantity,
+            tax: false,
+            tax_type: null,
+            tax_rate: null,
+            original_price: item.price.toString(),
+            variants: [],
+            amount: item.totalPrice,
+            points: item.totalPrice, // 1:1 points ratio
+            stamps: 0,
+            product_id: parseInt(item.productId),
+            business_branch_id: null,
+            user_id: parseInt(authStore.user?.id || '0'),
+            program_type: 'SimplePoints',
+          })),
+        },
+      };
+
+      // Send to Loystar API
+      const response = await fetch(`${process.env.EXPO_PUBLIC_LOYSTAR_BASE_URL}/sales`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${LoystarAPI.getAuthToken()}`,
+        },
+        body: JSON.stringify(loystarData),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Loystar API error: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('Order sent to Loystar successfully:', result);
+    } catch (error: any) {
+      console.error('Failed to send order to Loystar:', error);
+      // Don't throw error here as it shouldn't block the order completion
     }
   };
 
@@ -652,6 +1039,51 @@ const CheckoutScreen = observer(() => {
         </ScrollView>
 
         {renderPaymentModal()}
+
+        {/* Paystack Payment WebView Modal */}
+        <Modal
+          visible={showPaymentWebView}
+          animationType="slide"
+          presentationStyle="pageSheet"
+        >
+          <SafeAreaView style={styles.webViewContainer}>
+            <View style={styles.webViewHeader}>
+              <TouchableOpacity
+                style={styles.webViewCloseButton}
+                onPress={() => handlePaymentFailure('Payment cancelled by user')}
+              >
+                <Text style={styles.webViewCloseText}>Cancel</Text>
+              </TouchableOpacity>
+              <Text style={styles.webViewTitle}>Complete Payment</Text>
+              <View style={styles.webViewPlaceholder} />
+            </View>
+            
+            {paymentUrl ? (
+              <WebView
+                source={{ uri: paymentUrl }}
+                style={styles.webView}
+                onNavigationStateChange={handleWebViewNavigationStateChange}
+                startInLoadingState={true}
+                renderLoading={() => (
+                  <View style={styles.webViewLoading}>
+                    <ActivityIndicator size="large" color={Colors.primary} />
+                    <Text style={styles.webViewLoadingText}>Loading payment...</Text>
+                  </View>
+                )}
+                onError={(syntheticEvent) => {
+                  const { nativeEvent } = syntheticEvent;
+                  console.error('WebView error: ', nativeEvent);
+                  handlePaymentFailure('Failed to load payment page');
+                }}
+              />
+            ) : (
+              <View style={styles.webViewLoading}>
+                <ActivityIndicator size="large" color={Colors.primary} />
+                <Text style={styles.webViewLoadingText}>Preparing payment...</Text>
+              </View>
+            )}
+          </SafeAreaView>
+        </Modal>
 
         <View style={styles.footer}>
           <TouchableOpacity
@@ -1057,6 +1489,52 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.base,
     fontFamily: Typography.fontFamily.regular,
     color: Colors.label,
+  },
+  // WebView Modal Styles
+  webViewContainer: {
+    flex: 1,
+    backgroundColor: Colors.white,
+  },
+  webViewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    backgroundColor: Colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  webViewCloseButton: {
+    padding: Spacing.xs,
+  },
+  webViewCloseText: {
+    fontSize: Typography.fontSize.base,
+    fontFamily: Typography.fontFamily.medium,
+    color: Colors.primary,
+  },
+  webViewTitle: {
+    fontSize: Typography.fontSize.lg,
+    fontFamily: Typography.fontFamily.semiBold,
+    color: Colors.label,
+  },
+  webViewPlaceholder: {
+    width: 60, // Same width as close button for centering
+  },
+  webView: {
+    flex: 1,
+  },
+  webViewLoading: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.white,
+  },
+  webViewLoadingText: {
+    marginTop: Spacing.sm,
+    fontSize: Typography.fontSize.base,
+    fontFamily: Typography.fontFamily.regular,
+    color: Colors.textSecondary,
   },
 });
 

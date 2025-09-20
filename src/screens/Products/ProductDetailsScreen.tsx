@@ -42,33 +42,22 @@ const ProductDetailsScreen = observer(() => {
       return
     }
 
+    console.log('LoystarAPI object:', LoystarAPI);
+    console.log('fetchSingleProduct method:', LoystarAPI.fetchSingleProduct);
+
     try {
       setIsLoading(true)
       setError(null)
       
-      console.log('Searching for product with ID:', productId)
-      
-      // First, try to find the product in the store's cached data
-      // Check in farm offtake products
-      let foundProduct = productStore.farmOfftakeProducts?.find(p => p.id.toString() === productId)
-      
-      // Check in all Loystar products if not found in farm offtake
-      if (!foundProduct) {
-        foundProduct = productStore.allLoystarProducts?.find(p => p.id.toString() === productId)
+      console.log('Fetching product details for ID:', productId)
+      const productIdNumber = parseInt(productId, 10)
+      if (isNaN(productIdNumber)) {
+        throw new Error('Invalid product ID format')
       }
-      
-      // If still not found, try fetching from API with a larger limit
-      if (!foundProduct) {
-        console.log('Product not found in store, fetching from API...')
-        const products = await LoystarAPI.fetchProducts(undefined, 1, 500) // Use fetchProducts instead of fetchAllProducts
-        foundProduct = products.find(p => p.id.toString() === productId)
-      }
-      
-      if (foundProduct) {
-        console.log('Product found:', foundProduct.name)
-        setProduct(foundProduct)
+      const products = await LoystarAPI.fetchSingleProduct(productIdNumber)
+      if (products && products.length > 0) {
+        setProduct(products[0])
       } else {
-        console.log('Product not found with ID:', productId)
         setError('Product not found')
       }
     } catch (error: any) {

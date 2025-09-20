@@ -4,6 +4,7 @@ import { ProductStore } from '../stores/ProductStore';
 import { CartStore } from '../stores/CartStore';
 import { OrderStore } from '../stores/OrderStore';
 import walletStoreInstance, { WalletStore } from '../stores/WalletStore';
+import { FAQStore } from '../stores/FAQStore';
 import { WishlistStore } from '../stores/WishlistStore';
 
 // Create store context
@@ -13,6 +14,7 @@ interface StoreContextType {
   cartStore: CartStore;
   orderStore: OrderStore;
   walletStore: WalletStore;
+  faqStore: FAQStore;
   wishlistStore: WishlistStore;
 }
 
@@ -30,6 +32,7 @@ export const StoreProvider: React.FC<StoreProviderProps> = ({ children }) => {
     cartStore: new CartStore(),
     orderStore: new OrderStore(),
     walletStore: walletStoreInstance,
+    faqStore: new FAQStore(),
     wishlistStore: new WishlistStore(),
   }), []);
 

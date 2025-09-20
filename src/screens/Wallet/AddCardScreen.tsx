@@ -15,6 +15,9 @@ import { useNavigation } from '@react-navigation/native';
 import walletStore from '../../stores/WalletStore';
 import authStore from '../../stores/AuthStore';
 import { GlobalStyles, Colors } from '../../styles/globalStyles';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import Constants from 'expo-constants';
+import { ArrowLeft } from 'lucide-react-native';
 
 interface AddCardScreenProps {}
 
@@ -283,120 +286,123 @@ const AddCardScreen: React.FC<AddCardScreenProps> = observer(() => {
   const isFormValid = cardNumber && expiryDate && cvv && cardholderName && Object.keys(errors).length === 0;
 
   return (
+    
     <KeyboardAvoidingView 
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Text style={styles.backButtonText}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Add Payment Card</Text>
-        <View style={{ width: 50 }} />
-      </View>
-
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Card Preview */}
-        <View style={styles.cardPreview}>
-          <Text style={styles.cardBrand}>
-            {getCardBrand(cardNumber)}
-          </Text>
-          
-          <Text style={styles.cardNumberPreview}>
-            {cardNumber || '•••• •••• •••• ••••'}
-          </Text>
-          
-          <View style={styles.cardBottom}>
-            <Text style={styles.cardName}>
-              {cardholderName.toUpperCase() || 'CARDHOLDER NAME'}
-            </Text>
-            <Text style={styles.cardExpiry}>
-              {expiryDate || 'MM/YY'}
-            </Text>
-          </View>
+      <SafeAreaProvider style={{ backgroundColor: '#fff', position: 'relative', paddingTop: Constants.statusBarHeight }}>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <ArrowLeft size={24} color={Colors.label} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Add Payment Card</Text>
+          <View style={{ width: 50 }} />
         </View>
 
-        {/* Form */}
-        <View style={styles.formSection}>
-          {/* Card Number */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Card Number</Text>
-            <TextInput
-              style={[styles.input, errors.cardNumber && styles.inputError]}
-              value={cardNumber}
-              onChangeText={(text) => setCardNumber(formatCardNumber(text))}
-              placeholder="1234 5678 9012 3456"
-              keyboardType="numeric"
-              maxLength={19}
-            />
-            {errors.cardNumber && <Text style={styles.errorText}>{errors.cardNumber}</Text>}
-          </View>
-
-          {/* Expiry Date and CVV */}
-          <View style={styles.rowInputs}>
-            <View style={[styles.inputContainer, styles.halfInput]}>
-              <Text style={styles.inputLabel}>Expiry Date</Text>
-              <TextInput
-                style={[styles.input, errors.expiryDate && styles.inputError]}
-                value={expiryDate}
-                onChangeText={(text) => setExpiryDate(formatExpiryDate(text))}
-                placeholder="MM/YY"
-                keyboardType="numeric"
-                maxLength={5}
-              />
-              {errors.expiryDate && <Text style={styles.errorText}>{errors.expiryDate}</Text>}
-            </View>
-
-            <View style={[styles.inputContainer, styles.halfInput]}>
-              <Text style={styles.inputLabel}>CVV</Text>
-              <TextInput
-                style={[styles.input, errors.cvv && styles.inputError]}
-                value={cvv}
-                onChangeText={setCvv}
-                placeholder="123"
-                keyboardType="numeric"
-                maxLength={4}
-                secureTextEntry
-              />
-              {errors.cvv && <Text style={styles.errorText}>{errors.cvv}</Text>}
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          {/* Card Preview */}
+          <View style={styles.cardPreview}>
+            <Text style={styles.cardBrand}>
+              {getCardBrand(cardNumber)}
+            </Text>
+            
+            <Text style={styles.cardNumberPreview}>
+              {cardNumber || '•••• •••• •••• ••••'}
+            </Text>
+            
+            <View style={styles.cardBottom}>
+              <Text style={styles.cardName}>
+                {cardholderName.toUpperCase() || 'CARDHOLDER NAME'}
+              </Text>
+              <Text style={styles.cardExpiry}>
+                {expiryDate || 'MM/YY'}
+              </Text>
             </View>
           </View>
 
-          {/* Cardholder Name */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Cardholder Name</Text>
-            <TextInput
-              style={[styles.input, errors.cardholderName && styles.inputError]}
-              value={cardholderName}
-              onChangeText={setCardholderName}
-              placeholder="John Doe"
-              autoCapitalize="words"
-            />
-            {errors.cardholderName && <Text style={styles.errorText}>{errors.cardholderName}</Text>}
+          {/* Form */}
+          <View style={styles.formSection}>
+            {/* Card Number */}
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Card Number</Text>
+              <TextInput
+                style={[styles.input, errors.cardNumber && styles.inputError]}
+                value={cardNumber}
+                onChangeText={(text) => setCardNumber(formatCardNumber(text))}
+                placeholder="1234 5678 9012 3456"
+                keyboardType="numeric"
+                maxLength={19}
+              />
+              {errors.cardNumber && <Text style={styles.errorText}>{errors.cardNumber}</Text>}
+            </View>
+
+            {/* Expiry Date and CVV */}
+            <View style={styles.rowInputs}>
+              <View style={[styles.inputContainer, styles.halfInput]}>
+                <Text style={styles.inputLabel}>Expiry Date</Text>
+                <TextInput
+                  style={[styles.input, errors.expiryDate && styles.inputError]}
+                  value={expiryDate}
+                  onChangeText={(text) => setExpiryDate(formatExpiryDate(text))}
+                  placeholder="MM/YY"
+                  keyboardType="numeric"
+                  maxLength={5}
+                />
+                {errors.expiryDate && <Text style={styles.errorText}>{errors.expiryDate}</Text>}
+              </View>
+
+              <View style={[styles.inputContainer, styles.halfInput]}>
+                <Text style={styles.inputLabel}>CVV</Text>
+                <TextInput
+                  style={[styles.input, errors.cvv && styles.inputError]}
+                  value={cvv}
+                  onChangeText={setCvv}
+                  placeholder="123"
+                  keyboardType="numeric"
+                  maxLength={4}
+                  secureTextEntry
+                />
+                {errors.cvv && <Text style={styles.errorText}>{errors.cvv}</Text>}
+              </View>
+            </View>
+
+            {/* Cardholder Name */}
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Cardholder Name</Text>
+              <TextInput
+                style={[styles.input, errors.cardholderName && styles.inputError]}
+                value={cardholderName}
+                onChangeText={setCardholderName}
+                placeholder="John Doe"
+                autoCapitalize="words"
+              />
+              {errors.cardholderName && <Text style={styles.errorText}>{errors.cardholderName}</Text>}
+            </View>
           </View>
-        </View>
 
-        {/* Add Button */}
-        <TouchableOpacity
-          style={[styles.addButton, (!isFormValid || isLoading) && styles.addButtonDisabled]}
-          onPress={handleAddCard}
-          disabled={!isFormValid || isLoading}
-        >
-          {isLoading ? (
-            <ActivityIndicator color={Colors.white} />
-          ) : (
-            <Text style={styles.addButtonText}>Add Card</Text>
-          )}
-        </TouchableOpacity>
+          {/* Add Button */}
+          <TouchableOpacity
+            style={[styles.addButton, (!isFormValid || isLoading) && styles.addButtonDisabled]}
+            onPress={handleAddCard}
+            disabled={!isFormValid || isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator color={Colors.white} />
+            ) : (
+              <Text style={styles.addButtonText}>Add Card</Text>
+            )}
+          </TouchableOpacity>
 
-        {/* Security Note */}
-        <View style={styles.securityNote}>
-          <Text style={styles.securityNoteText}>
-            🔒 Your card information is encrypted and securely stored. We use industry-standard security measures to protect your data.
-          </Text>
-        </View>
-      </ScrollView>
+          {/* Security Note */}
+          <View style={styles.securityNote}>
+            <Text style={styles.securityNoteText}>
+              🔒 Your card information is encrypted and securely stored. We use industry-standard security measures to protect your data.
+            </Text>
+          </View>
+        </ScrollView>
+      </SafeAreaProvider>
     </KeyboardAvoidingView>
   );
 });

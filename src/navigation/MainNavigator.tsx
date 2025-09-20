@@ -45,7 +45,7 @@ const MainNavigator = observer(() => {
         }}
       />
       <Tab.Screen
-        name="WishList"
+        name="Wishlist"
         component={WishListScreen}
         options={{
           tabBarIcon: ({ color, size }: { color: string; size: number }) => (

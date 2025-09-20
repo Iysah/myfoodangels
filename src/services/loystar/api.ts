@@ -1,3 +1,5 @@
+import axios, { AxiosInstance, AxiosResponse } from 'axios';
+
 const LOYSTAR_BASE_URL = process.env.EXPO_PUBLIC_LOYSTAR_BASE_URL;
 const MERCHANT_ID = process.env.EXPO_PUBLIC_MERCHANT_ID;
 
@@ -121,6 +123,65 @@ export class LoystarAPI {
   private static baseURL = LOYSTAR_BASE_URL;
   private static merchantId = MERCHANT_ID;
   private static authToken: string | null = null;
+  private static _axiosInstance: AxiosInstance | null = null;
+
+  private static get axiosInstance(): AxiosInstance {
+    if (!this._axiosInstance) {
+      this._axiosInstance = this.initializeAxios();
+    }
+    return this._axiosInstance;
+  }
+
+  private static initializeAxios(): AxiosInstance {
+    // Initialize Axios instance
+    const instance = axios.create({
+      baseURL: this.baseURL,
+      timeout: 30000, // 30 seconds timeout
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    // Request interceptor to add authentication headers
+    instance.interceptors.request.use(
+      (config) => {
+        // Add the standard headers for Loystar API
+        config.headers.set('token', 'AsAVo8qbTfNbSaWHFt91fg');
+        config.headers.set('uid', 'myfoodangels@gmail.com');
+        config.headers.set('Authorization', 'Bearer eyJhY2Nlc3MtdG9rZW4iOiJBc0FWbzhxYlRmTmJTYVdIRnQ5MWZnIiwidG9rZW4tdHlwZSI6IkJlYXJlciIsImNsaWVudCI6InFFQVg5SjVjVlk3aVEzanZxRVpNQVEiLCJleHBpcnkiOiIxODE5OTE1NjA5IiwidWlkIjoibXlmb29kYW5nZWxzQGdtYWlsLmNvbSJ9');
+        config.headers.set('expiry', '1819915609');
+        config.headers.set('client', 'qEAX9J5cVY7iQ3jvqEZMAQ');
+        return config;
+      },
+      (error) => {
+        return Promise.reject(error);
+      }
+    );
+
+    // Response interceptor for error handling
+    instance.interceptors.response.use(
+      (response: AxiosResponse) => {
+        console.log('Loystar API response:', response.config.url, response.status);
+        return response;
+      },
+      (error) => {
+        console.error('Loystar API error:', error.config?.url, error.response?.status, error.message);
+        
+        if (error.response) {
+          // Server responded with error status
+          throw new Error(`API Error ${error.response.status}: ${error.response.data || error.message}`);
+        } else if (error.request) {
+          // Request was made but no response received
+          throw new Error('Network error: No response from server');
+        } else {
+          // Something else happened
+          throw new Error(`Request error: ${error.message}`);
+        }
+      }
+    );
+
+    return instance;
+  }
 
   static setAuthToken(token: string) {
     this.authToken = token;
@@ -135,36 +196,23 @@ export class LoystarAPI {
       throw new Error('Loystar configuration is missing. Please check your environment variables.');
     }
 
-    const url = `${this.baseURL}/customer_phone_auth_session`;
+    const endpoint = '/customer_phone_auth_session';
     const requestBody: LoystarLoginRequest = {
       email,
       merchant_id: this.merchantId,
     };
 
     try {
-      console.log('Loystar login request:', { url, body: requestBody });
+      console.log('Loystar login request:', { endpoint, body: requestBody });
       
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Loystar login error:', response.status, errorText);
-        throw new Error(`Loystar login failed: ${response.status} ${errorText}`);
-      }
-
-      const data: LoystarAuthResponse = await response.json();
-      console.log('Loystar login success:', data);
+      const response: AxiosResponse<LoystarAuthResponse> = await this.axiosInstance.post(endpoint, requestBody);
+      
+      console.log('Loystar login success:', response.data);
       
       // Store the auth token for future requests
-      this.setAuthToken(data.token);
+      this.setAuthToken(response.data.token);
       
-      return data;
+      return response.data;
     } catch (error) {
       console.error('Loystar login error:', error);
       throw error;
@@ -172,41 +220,6 @@ export class LoystarAPI {
   }
 
   // signup or add user
-
-  static async makeAuthenticatedRequest(endpoint: string, options: RequestInit = {}): Promise<any> {
-    if (!this.baseURL) {
-      throw new Error('Loystar base URL is not configured');
-    }
-
-    if (!this.authToken) {
-      throw new Error('No authentication token available. Please login first.');
-    }
-
-    const url = `${this.baseURL}${endpoint}`;
-    const headers = {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${this.authToken}`,
-      ...options.headers,
-    };
-
-    try {
-      const response = await fetch(url, {
-        ...options,
-        headers,
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Loystar API error:', response.status, errorText);
-        throw new Error(`Loystar API request failed: ${response.status} ${errorText}`);
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error('Loystar API request error:', error);
-      throw error;
-    }
-  }
 
   static async fetchProducts(
     categoryId?: number,
@@ -217,42 +230,19 @@ export class LoystarAPI {
       throw new Error('Loystar base URL is not configured');
     }
 
-    // if (!this.authToken) {
-    //   throw new Error('No authentication token available. Please login first.');
-    // }
-
     let endpoint = `/get_latest_merchant_products?page[number]=${page}&page[size]=${pageSize}`;
     if (categoryId) {
       endpoint += `&category_id=${categoryId}`;
     }
 
-    const headers = {
-      'token': 'AsAVo8qbTfNbSaWHFt91fg',
-      'client': 'qEAX9J5cVY7iQ3jvqEZMAQ',
-      'uid': 'myfoodangels@gmail.com',
-      'token-type': 'Bearer',
-      'authorization': 'Bearer eyJhY2Nlc3MtdG9rZW4iOiJBc0FWbzhxYlRmTmJTYVdIRnQ5MWZnIiwidG9rZW4tdHlwZSI6IkJlYXJlciIsImNsaWVudCI6InFFQVg5SjVjVlk3aVEzanZxRVpNQVEiLCJleHBpcnkiOiIxODE5OTE1NjA5IiwidWlkIjoibXlmb29kYW5nZWxzQGdtYWlsLmNvbSJ9',
-      'expiry': '1819915609',
-    };
-
     try {
       console.log('Fetching Loystar products:', { endpoint, categoryId, page, pageSize });
       
-      const response = await fetch(`${this.baseURL}${endpoint}`, {
-        method: 'GET',
-        headers,
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Loystar products fetch error:', response.status, errorText);
-        throw new Error(`Failed to fetch products: ${response.status} ${errorText}`);
-      }
-
-      const data: LoystarProduct[] = await response.json();
-      console.log('Loystar products fetched successfully:', data);
+      const response: AxiosResponse<LoystarProduct[]> = await this.axiosInstance.get(endpoint);
       
-      return data;
+      console.log('Loystar products fetched successfully:', response.data);
+      
+      return response.data;
     } catch (error) {
       console.error('Loystar products fetch error:', error);
       throw error;
@@ -268,83 +258,41 @@ export class LoystarAPI {
       throw new Error('Loystar base URL is not configured');
     }
 
-    // if (!this.authToken) {
-    //   throw new Error('No authentication token available. Please login first.');
-    // }
-
-    let endpoint = `/search_product/${productName}`;
-
-    const headers = {
-      'token': 'AsAVo8qbTfNbSaWHFt91fg',
-      'client': 'qEAX9J5cVY7iQ3jvqEZMAQ',
-      'uid': 'myfoodangels@gmail.com',
-      'token-type': 'Bearer',
-      'authorization': 'Bearer eyJhY2Nlc3MtdG9rZW4iOiJBc0FWbzhxYlRmTmJTYVdIRnQ5MWZnIiwidG9rZW4tdHlwZSI6IkJlYXJlciIsImNsaWVudCI6InFFQVg5SjVjVlk3aVEzanZxRVpNQVEiLCJleHBpcnkiOiIxODE5OTE1NjA5IiwidWlkIjoibXlmb29kYW5nZWxzQGdtYWlsLmNvbSJ9',
-      'expiry': '1819915609',
-    };
+    const endpoint = `/search_product/${productName}`;
 
     try {
-      console.log('Fetching Loystar products:', { endpoint, productName, page, pageSize });
+      console.log('Searching Loystar products:', { endpoint, productName, page, pageSize });
       
-      const response = await fetch(`${this.baseURL}${endpoint}`, {
-        method: 'GET',
-        headers,
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Loystar products fetch error:', response.status, errorText);
-        throw new Error(`Failed to fetch products: ${response.status} ${errorText}`);
-      }
-
-      const data: LoystarProduct[] = await response.json();
-      console.log('Loystar products fetched successfully:', data);
+      const response: AxiosResponse<LoystarProduct[]> = await this.axiosInstance.get(endpoint);
       
-      return data;
+      console.log('Loystar products search successful:', response.data);
+      
+      return response.data;
     } catch (error) {
-      console.error('Loystar products fetch error:', error);
+      console.error('Loystar products search error:', error);
       throw error;
     }
   }
 
-  static async fetchAllProducts(
-    page: number = 1,
-    pageSize: number = 100
+  static async fetchSingleProduct(
+    productId: number,
   ): Promise<LoystarProduct[]> {
     if (!this.baseURL) {
       throw new Error('Loystar base URL is not configured');
     }
 
-    if (!this.authToken) {
-      throw new Error('No authentication token available. Please login first.');
-    }
-
-    let endpoint = `/get_products_of_merchant_urewards?page[number]=${page}&page[size]=${pageSize}`;
-
-    const headers = {
-      'authorization': `Bearer ${this.authToken}`,
-    };
+    const endpoint = `/get_product_by_id?product_id=${productId}`;
 
     try {
-      console.log('Fetching Loystar products:', { endpoint, page, pageSize });
+      console.log('Fetching Loystar product:', { endpoint, productId });
       
-      const response = await fetch(`${this.baseURL}${endpoint}`, {
-        method: 'GET',
-        headers,
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Loystar products fetch error:', response.status, errorText);
-        throw new Error(`Failed to fetch products: ${response.status} ${errorText}`);
-      }
-
-      const data: LoystarProduct[] = await response.json();
-      console.log('Loystar products fetched successfully:', data);
+      const response: AxiosResponse<LoystarProduct[]> = await this.axiosInstance.get(endpoint);
       
-      return data;
+      console.log('Loystar product fetched successfully:', response.data);
+      
+      return response.data;
     } catch (error) {
-      console.error('Loystar products fetch error:', error);
+      console.error('Loystar product fetch error:', error);
       throw error;
     }
   }

@@ -12,7 +12,7 @@ export type AuthStackParamList = {
 // Main Tab Navigator Param List
 export type MainTabParamList = {
   Home: undefined;
-  WishList: undefined;
+  Wishlist: undefined;
   TrackOrders: undefined;
   Profile: undefined;
 };

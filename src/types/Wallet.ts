@@ -1,28 +1,24 @@
 export interface Wallet {
-  id: string;
+  id?: string;
   userId: string;
   balance: number;
-  currency?: string;
   name: string;
   email: string;
   totalDeposit: number;
   totalSpent: number;
-  createdAt?: Date;
-  updatedAt?: Date;
-  transactions?: Transaction[];
-  cards?: PaymentCard[];
 }
 
 export interface Transaction {
   id: string;
-  walletId: string;
+  userId: string; // Changed from walletId to userId to match Firestore data
   amount: number;
-  type: 'deposit' | 'withdrawal' | 'payment' | 'refund';
-  status: 'pending' | 'completed' | 'failed' | 'cancelled';
-  description: string;
+  type: 'Credit' | 'Debit' | 'deposit' | 'withdrawal' | 'payment' | 'refund'; // Added Credit/Debit from your sample
+  status: 'Success' | 'Failed' | 'pending' | 'completed' | 'failed' | 'cancelled'; // Added Success/Failed from your sample
+  description?: string; // Made optional since it might not always be present
   reference?: string; // Order ID or other reference
-  createdAt: Date;
-  updatedAt: Date;
+  date: Date; // Changed from createdAt to date to match Firestore data
+  createdAt?: Date; // Keep as optional for backward compatibility
+  updatedAt?: Date; // Made optional
 }
 
 export interface PaymentCard {
