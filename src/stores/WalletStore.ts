@@ -3,6 +3,7 @@ import { Wallet, Transaction, PaymentCard, TopUpRequest } from '../types';
 import * as FirestoreService from '../services/firebase/firestore';
 import PaystackService, { PaystackResponse } from '../services/paystack/PaystackService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { auth } from '../services/firebase/config';
 
 class WalletStore {
   wallet: Wallet | null = null;
@@ -27,6 +28,19 @@ class WalletStore {
     this.isLoading = true;
     this.error = null;
     try {
+      // Check if user is authenticated
+      if (!auth.currentUser) {
+        throw new Error('User must be authenticated to access wallet data');
+      }
+
+      // Verify the userId matches the authenticated user
+      if (auth.currentUser.uid !== userId) {
+        throw new Error('User ID mismatch - unauthorized access');
+      }
+
+      console.log('Fetching wallet for user:', userId);
+      console.log('Current authenticated user:', auth.currentUser.uid);
+
       const constraints = [
         FirestoreService.createWhereConstraint('userId', '==', userId),
         FirestoreService.createLimitConstraint(1)
@@ -43,18 +57,12 @@ class WalletStore {
       } else {
         // Create a new wallet if none exists
         const newWallet: Wallet = {
-          id: '',
           userId,
           balance: 0,
           name: userName ?? 'User',
           email: userEmail ?? '',
           totalDeposit: 0,
-          totalSpent: 0,
-          currency: 'NGN',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          transactions: [],
-          cards: []
+          totalSpent: 0
         };
         
         const walletId = await FirestoreService.addDocument('wallets', newWallet);
@@ -78,22 +86,25 @@ class WalletStore {
   };
 
   // Fetch wallet transactions
-  fetchTransactions = async (walletId: string) => {
+  fetchTransactions = async (userId: string) => {
     this.isLoading = true;
     this.error = null;
     try {
-      // Simplified query to avoid composite index requirement
+      // Query transactions by userId since that's what exists in the collection
       const constraints = [
-        FirestoreService.createWhereConstraint('walletId', '==', walletId),
+        FirestoreService.createWhereConstraint('userId', '==', userId),
         FirestoreService.createLimitConstraint(50) // Limit to recent 50 transactions
       ];
       
       const transactions = await FirestoreService.queryDocuments<Transaction>('transactions', constraints);
       
-      // Sort transactions locally by createdAt desc
+      // Sort transactions locally by date desc
       const sortedTransactions = transactions.sort((a, b) => {
-        const dateA = a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt);
-        const dateB = b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt);
+        // Handle both 'date' and 'createdAt' fields for compatibility
+        const dateA = a.date ? (a.date instanceof Date ? a.date : new Date(a.date)) : 
+                     (a.createdAt ? (a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt)) : new Date());
+        const dateB = b.date ? (b.date instanceof Date ? b.date : new Date(b.date)) : 
+                     (b.createdAt ? (b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt)) : new Date());
         return dateB.getTime() - dateA.getTime();
       });
       
@@ -277,7 +288,7 @@ class WalletStore {
   getDisplayBalance = (): string => {
     if (!this.wallet) return '₦0.00';
     if (!this.isBalanceVisible) return '****';
-    return this.paystackService.formatCurrency(this.wallet.balance, this.wallet.currency);
+    return this.paystackService.formatCurrency(this.wallet.balance, 'NGN');
   };
 
   // Process Paystack top-up
@@ -304,7 +315,7 @@ class WalletStore {
         walletId: this.wallet.id,
         amount,
         paymentMethod: 'card',
-        currency: this.wallet.currency ?? 'NGN',
+        currency: 'NGN',
       };
 
       const paymentData = await this.paystackService.processWalletTopUp(
@@ -368,12 +379,13 @@ class WalletStore {
       // Create a new transaction
       const transaction: Transaction = {
         id: '',
-        walletId: request.walletId,
+        userId: this.wallet.userId, // Use userId from wallet instead of request.walletId
         amount: request.amount,
-        type: 'deposit',
-        status: 'completed',
+        type: 'Credit', // Use 'Credit' to match your Firestore data
+        status: 'Success', // Use 'Success' to match your Firestore data
         description: `Wallet top-up via ${request.paymentMethod}`,
         reference,
+        date: new Date(), // Use 'date' field to match your Firestore data
         createdAt: new Date(),
         updatedAt: new Date()
       };
@@ -384,14 +396,12 @@ class WalletStore {
       const newBalance = this.wallet.balance + request.amount;
       
       await FirestoreService.updateDocument('wallets', this.wallet.id, {
-        balance: newBalance,
-        updatedAt: new Date()
+        balance: newBalance
       });
       
       runInAction(() => {
         if (this.wallet) {
           this.wallet.balance = newBalance;
-          this.wallet.updatedAt = new Date();
         }
         
         // Add the new transaction to the list
@@ -440,8 +450,7 @@ class WalletStore {
     this.error = null;
     try {
       const updateData = {
-        balance: newBalance,
-        updatedAt: new Date()
+        balance: newBalance
       };
       
       await FirestoreService.updateDocument('wallets', walletId, updateData);
@@ -449,7 +458,6 @@ class WalletStore {
       runInAction(() => {
         if (this.wallet && this.wallet.id === walletId) {
           this.wallet.balance = newBalance;
-          this.wallet.updatedAt = new Date();
         }
         this.isLoading = false;
       });
@@ -477,12 +485,13 @@ class WalletStore {
 
       // Create transaction record
       const transaction: Omit<Transaction, 'id'> = {
-        walletId,
+        userId: this.wallet.userId, // Use userId from wallet instead of walletId
         amount: -amount, // Negative for payment
         type: 'payment',
-        status: 'completed',
+        status: 'Success', // Use 'Success' to match your Firestore data
         description,
         reference: orderId,
+        date: new Date(), // Use 'date' field to match your Firestore data
         createdAt: new Date(),
         updatedAt: new Date()
       };
@@ -509,6 +518,18 @@ class WalletStore {
       });
       throw error;
     }
+  };
+
+  // Helper method to check authentication status
+  checkAuthStatus = () => {
+    const user = auth.currentUser;
+    console.log('Auth status:', {
+      isAuthenticated: !!user,
+      userId: user?.uid,
+      email: user?.email,
+      isAnonymous: user?.isAnonymous
+    });
+    return user;
   };
 }
 

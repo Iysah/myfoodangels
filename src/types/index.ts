@@ -1,11 +1,12 @@
 // Export all data models
-export * from './User';
-export * from './Product';
 export * from './Category';
-export * from './Order';
-export * from './Wallet';
-export * from './Delivery';
 export * from './Coupon';
+export * from './Delivery';
+export * from './FAQ';
+export * from './Order';
+export * from './Product';
+export * from './User';
+export * from './Wallet';
 
 // Common types used across the application
 export interface PaginationParams {

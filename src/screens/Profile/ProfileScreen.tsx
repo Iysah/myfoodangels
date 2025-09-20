@@ -54,7 +54,7 @@ const ProfileScreen = observer(() => {
     },
     {
       id: 'faqs',
-      title: 'FAQS',
+      title: 'FAQs',
       icon: FaqsIcon,
       onPress: () => navigation.navigate('Faqs'),
     }, 

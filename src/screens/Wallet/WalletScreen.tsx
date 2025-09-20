@@ -60,7 +60,7 @@ const WalletScreen = observer(() => {
         authStore.user.displayName || authStore.user.email
       );
       if (walletStore.wallet) {
-        await walletStore.fetchTransactions(walletStore.wallet.id);
+        await walletStore.fetchTransactions(authStore.user.id);
         await walletStore.fetchPaymentCards(authStore.user.id);
       }
     } catch (error) {
