@@ -14,15 +14,22 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.theproductdude.myfoodangels"
+      "bundleIdentifier": "com.theproductdude.myfoodangels",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/mfa-icon.png",
         "backgroundColor": "#000080"
       },
+      "googleServicesFile": "./google-services.json",
       "package": "com.theproductdude.myfoodangels",
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -43,14 +50,11 @@
         "origin": false
       },
       "eas": {
-        "projectId": "b0879115-f6a8-49dc-b601-65224fd9b149"
+        "projectId": "b41dde31-7fea-46a2-b0ca-4a44c876a5e4"
       }
     },
     "runtimeVersion": {
       "policy": "appVersion"
-    },
-    "updates": {
-      "url": "https://u.expo.dev/b0879115-f6a8-49dc-b601-65224fd9b149"
     }
   }
 }
