@@ -301,4 +301,58 @@ export class LoystarAPI {
   static async fetchFarmOfftakeProducts(page: number = 1, pageSize: number = 6): Promise<LoystarProduct[]> {
     return this.fetchProducts(7486, page, pageSize);
   }
+
+  // Inventory tracking helper functions
+  static isProductInStock(product: LoystarProduct): boolean {
+    // If inventory tracking is disabled, assume product is in stock
+    if (!product.track_inventory) {
+      return true;
+    }
+    
+    // Check if quantity exists and is greater than 0
+    const quantity = parseInt(product.quantity || '0');
+    return quantity > 0;
+  }
+
+  static getStockQuantity(product: LoystarProduct): number {
+    if (!product.track_inventory) {
+      return -1; // -1 indicates unlimited/not tracked
+    }
+    
+    return parseInt(product.quantity || '0');
+  }
+
+  static getStockStatus(product: LoystarProduct): 'in_stock' | 'out_of_stock' | 'low_stock' | 'not_tracked' {
+    if (!product.track_inventory) {
+      return 'not_tracked';
+    }
+    
+    const quantity = parseInt(product.quantity || '0');
+    
+    if (quantity === 0) {
+      return 'out_of_stock';
+    } else if (quantity <= 5) { // Consider low stock when 5 or fewer items
+      return 'low_stock';
+    } else {
+      return 'in_stock';
+    }
+  }
+
+  static getStockDisplayText(product: LoystarProduct): string {
+    const status = this.getStockStatus(product);
+    const quantity = this.getStockQuantity(product);
+    
+    switch (status) {
+      case 'out_of_stock':
+        return 'Out of Stock';
+      case 'low_stock':
+        return `Only ${quantity} left`;
+      case 'in_stock':
+        return `${quantity} in stock`;
+      case 'not_tracked':
+        return 'In Stock';
+      default:
+        return 'In Stock';
+    }
+  }
 }

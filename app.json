@@ -13,7 +13,7 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.theproductdude.myfoodangels",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false

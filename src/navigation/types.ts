@@ -31,6 +31,7 @@ export type RootStackParamList = {
   OrderDetails: { orderId: string };
   EditProfile: undefined;
   Wallet: undefined;
+  Coupons: undefined;
   AddCard: undefined;
   TopUp: undefined;
   Settings: undefined;

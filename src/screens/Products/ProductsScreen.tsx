@@ -105,6 +105,12 @@ const ProductsScreen: React.FC<ProductsScreenProps> = observer(() => {
   };
 
   const addToCart = (product: LoystarProduct) => {
+    // Check if product is in stock before adding to cart
+    if (!LoystarAPI.isProductInStock(product)) {
+      ToastService.error('This item is currently out of stock');
+      return;
+    }
+
     try {
       // Convert LoystarProduct to our Product type
       const cartProduct = {
@@ -117,7 +123,7 @@ const ProductsScreen: React.FC<ProductsScreenProps> = observer(() => {
         category: category.name,
         subcategory: undefined,
         tags: [],
-        stock: parseInt(product.quantity || '0'),
+        stock: LoystarAPI.getStockQuantity(product),
         rating: 0,
         reviewCount: 0,
         createdAt: new Date(product.created_at),
@@ -160,46 +166,84 @@ const ProductsScreen: React.FC<ProductsScreenProps> = observer(() => {
     }
   };
 
-  const renderProduct = ({ item }: { item: LoystarProduct }) => (
-    <TouchableOpacity style={styles.productCard} onPress={() => handleProductPress(item.id.toString())}>
-      <View style={styles.imageContainer}>
-        <Image 
-          source={{ uri: item.picture || 'https://via.placeholder.com/150' }} 
-          style={styles.productImage}
-        />
-        <TouchableOpacity 
-          style={styles.wishlistButton}
-          onPress={() => handleWishlistToggle(item)}
-        >
-          <Heart 
-            size={20} 
-            color={wishlistStore.isInWishlist(item.id.toString()) ? Colors.primary : '#ccc'}
-            fill={wishlistStore.isInWishlist(item.id.toString()) ? Colors.primary : 'transparent'}
+  const renderProduct = ({ item }: { item: LoystarProduct }) => {
+    const isInStock = LoystarAPI.isProductInStock(item);
+    const stockStatus = LoystarAPI.getStockStatus(item);
+    const stockDisplayText = LoystarAPI.getStockDisplayText(item);
+
+    return (
+      <TouchableOpacity style={styles.productCard} onPress={() => handleProductPress(item.id.toString())}>
+        <View style={styles.imageContainer}>
+          <Image 
+            source={{ uri: item.picture || 'https://via.placeholder.com/150' }} 
+            style={[styles.productImage, !isInStock && styles.outOfStockImage]}
           />
-        </TouchableOpacity>
-      </View>
-      <View style={styles.productInfo}>
-        <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
-        {item.description && (
-          <Text style={styles.productDescription} numberOfLines={2}>
-            {item.description}
-          </Text>
-        )}
-        <View style={styles.priceContainer}>
-          <Text style={styles.productPrice}>₦{parseFloat(item.price).toLocaleString()}</Text>
-          {item.original_price && parseFloat(item.original_price) > parseFloat(item.price) && (
-            <Text style={styles.originalPrice}>₦{parseFloat(item.original_price).toLocaleString()}</Text>
+          
+          {/* Stock Status Badge */}
+          {stockStatus === 'out_of_stock' && (
+            <View style={styles.stockBadge}>
+              <Text style={styles.stockBadgeText}>Out of Stock</Text>
+            </View>
           )}
+          {stockStatus === 'low_stock' && (
+            <View style={[styles.stockBadge, styles.lowStockBadge]}>
+              <Text style={styles.stockBadgeText}>Low Stock</Text>
+            </View>
+          )}
+          
+          <TouchableOpacity 
+            style={styles.wishlistButton}
+            onPress={() => handleWishlistToggle(item)}
+          >
+            <Heart 
+              size={20} 
+              color={wishlistStore.isInWishlist(item.id.toString()) ? Colors.primary : '#ccc'}
+              fill={wishlistStore.isInWishlist(item.id.toString()) ? Colors.primary : 'transparent'}
+            />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity 
-          style={styles.addToCartButton}
-          onPress={() => addToCart(item)}
-        >
-          <Text style={styles.addToCartText}>Add to Cart</Text>
-        </TouchableOpacity>
-      </View>
-    </TouchableOpacity>
-  );
+        <View style={styles.productInfo}>
+          <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
+          {item.description && (
+            <Text style={styles.productDescription} numberOfLines={2}>
+              {item.description}
+            </Text>
+          )}
+          <View style={styles.priceContainer}>
+            <Text style={styles.productPrice}>₦{parseFloat(item.price).toLocaleString()}</Text>
+            {item.original_price && parseFloat(item.original_price) > parseFloat(item.price) && (
+              <Text style={styles.originalPrice}>₦{parseFloat(item.original_price).toLocaleString()}</Text>
+            )}
+          </View>
+          
+          {/* Stock Status Text */}
+          <Text style={[
+            styles.stockText,
+            stockStatus === 'out_of_stock' && styles.outOfStockText,
+            stockStatus === 'low_stock' && styles.lowStockText
+          ]}>
+            {stockDisplayText}
+          </Text>
+          
+          <TouchableOpacity 
+            style={[
+              styles.addToCartButton,
+              !isInStock && styles.disabledButton
+            ]}
+            onPress={() => addToCart(item)}
+            disabled={!isInStock}
+          >
+            <Text style={[
+              styles.addToCartText,
+              !isInStock && styles.disabledButtonText
+            ]}>
+              {isInStock ? 'Add to Cart' : 'Out of Stock'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   const renderFooter = () => {
     if (!isLoadingMore) return null;
@@ -537,6 +581,45 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 14,
     color: '#666',
+  },
+  // Inventory tracking styles
+  outOfStockImage: {
+    opacity: 0.5,
+  },
+  stockBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    backgroundColor: '#f44336',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  lowStockBadge: {
+    backgroundColor: '#ff9800',
+  },
+  stockBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  stockText: {
+    fontSize: 11,
+    color: '#4CAF50',
+    marginBottom: 8,
+    fontWeight: '500',
+  },
+  outOfStockText: {
+    color: '#f44336',
+  },
+  lowStockText: {
+    color: '#ff9800',
+  },
+  disabledButton: {
+    backgroundColor: '#ccc',
+  },
+  disabledButtonText: {
+    color: '#999',
   },
 });
 

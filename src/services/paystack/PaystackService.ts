@@ -46,8 +46,8 @@ class PaystackService {
 
   private constructor() {
     this.config = {
-      publicKey: process.env.EXPO_PUBLIC_PAYSTACK_PUBLIC_TEST_KEY || '',
-      secretKey: process.env.EXPO_PUBLIC_PAYSTACK_SECRET_TEST_KEY || '',
+      publicKey: process.env.EXPO_PUBLIC_PAYSTACK_PUBLIC_TEST_KEY || 'pk_test_2f5fe11f645e8ffa062f379d652aef8daf391f82',
+      secretKey: process.env.EXPO_PUBLIC_PAYSTACK_SECRET_TEST_KEY || 'sk_test_08da91d59f77e26d85a8f403d0b675b22f3ce5e5',
     };
 
     if (!this.config.publicKey) {
@@ -75,7 +75,7 @@ class PaystackService {
    * Convert amount to kobo (Paystack uses kobo as the smallest unit)
    */
   convertToKobo(amount: number): number {
-    return Math.round(amount * 100);
+    return Math.round(amount / 100);
   }
 
   /**
@@ -97,7 +97,7 @@ class PaystackService {
   ): PaystackPaymentData {
     return {
       email,
-      amount: this.convertToKobo(amount),
+      amount: amount,
       currency,
       reference: reference || this.generateReference(),
       metadata: {

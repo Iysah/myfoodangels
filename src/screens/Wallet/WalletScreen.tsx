@@ -18,6 +18,8 @@ import { useStores } from '../../contexts/StoreContext';
 import { Eye, EyeOff, Plus, CreditCard, ArrowLeft, ArrowUpRight, ArrowDownLeft } from 'lucide-react-native';
 import { Transaction } from '../../types/Wallet';
 import Constants from 'expo-constants';
+import Toast from 'react-native-toast-message';
+import ToastService from '../../utils/Toast';
 
 const WalletScreen = observer(() => {
   const navigation = useNavigation();
@@ -65,7 +67,8 @@ const WalletScreen = observer(() => {
       }
     } catch (error) {
       console.error('Error loading wallet data:', error);
-      Alert.alert('Error', 'Failed to load wallet data. Please try again.');
+      ToastService.error("Error!", "Failed to load wallet data. Please try again.")
+      // Alert.alert('Error', 'Failed to load wallet data. Please try again.');
     }
   };
 
@@ -140,8 +143,8 @@ const WalletScreen = observer(() => {
         styles.transactionAmount,
         { color: getTransactionColor(item.type) }
       ]}>
-        {item.type === 'deposit' || item.type === 'refund' ? '+' : '-'}
-        ₦{item.amount.toFixed(2)}
+        {item?.type === 'deposit' || item?.type === 'refund' ? '+' : '-'}
+        ₦{item?.amount?.toFixed(2) || '0.00'}
       </Text>
     </View>
   );
@@ -206,13 +209,13 @@ const WalletScreen = observer(() => {
             <Text style={styles.balanceAmount}>
               {walletStore.isBalanceVisible 
                 ? walletStore.getDisplayBalance() 
-                : '₦****'
+                : '*******'
               }
             </Text>
             
-            {walletStore.error && (
+            {/* {walletStore.error && (
               <Text style={styles.errorText}>{walletStore.error}</Text>
-            )}
+            )} */}
           </View>
 
           {/* Action Buttons */}
@@ -254,7 +257,7 @@ const WalletScreen = observer(() => {
                     <CreditCard size={24} color={Colors.primary} />
                     <View style={styles.cardDetails}>
                       <Text style={styles.cardNumber}>**** **** **** {card.last4}</Text>
-                      <Text style={styles.cardBrand}>{card.brand.toUpperCase()}</Text>
+                      <Text style={styles.cardBrand}>{card?.brand?.toUpperCase()}</Text>
                     </View>
                   </View>
                   {card.isDefault && (
@@ -332,14 +335,8 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.lg,
     padding: Spacing.lg,
     marginBottom: Spacing.md,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    borderWidth: 1,
+    borderColor: Colors.border
   },
   balanceHeader: {
     flexDirection: 'row',

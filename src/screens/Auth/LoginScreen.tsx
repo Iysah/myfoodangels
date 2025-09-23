@@ -19,6 +19,7 @@ import { BorderRadius, Colors, GlobalStyles, Spacing, Typography } from '../../s
 import { useStores } from '../../contexts/StoreContext';
 import ToastService from '../../utils/Toast';
 import { AuthStackParamList } from '../../navigation/types';
+import { Eye, EyeClosed } from 'lucide-react-native';
 
 type LoginScreenRouteProp = RouteProp<AuthStackParamList, 'Login'>;
 
@@ -140,7 +141,7 @@ const LoginScreen = observer(() => {
                 style={styles.eyeIcon}
                 onPress={() => setShowPassword(!showPassword)}
               >
-                <Text>{showPassword ? '👁️' : '👁️‍🗨️'}</Text>
+                {showPassword ? <Eye size={18} /> : <EyeClosed size={18} />}
               </TouchableOpacity>
             </View>
           </View>

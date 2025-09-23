@@ -19,6 +19,8 @@ import UserIcon from '../../../assets/icons/user';
 import WalletsIcon from '../../../assets/icons/wallets';
 import FaqsIcon from '../../../assets/icons/faqs';
 import ReferIcon from '../../../assets/icons/refer';
+import { Ticket, Tickets } from 'lucide-react-native'
+import CouponIcon from '../../../assets/icons/coupons';
 
 const ProfileScreen = observer(() => {
   const navigation = useNavigation();
@@ -51,6 +53,12 @@ const ProfileScreen = observer(() => {
       title: 'Refer and Earn',
       icon: ReferIcon,
       onPress: () => navigation.navigate('Refer'),
+    },
+    {
+      id: 'coupons',
+      title: 'Coupons',
+      icon: CouponIcon,
+      onPress: () => navigation.navigate('Coupons'),
     },
     {
       id: 'faqs',

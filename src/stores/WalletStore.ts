@@ -1,6 +1,7 @@
 import { makeAutoObservable, runInAction } from 'mobx';
 import { Wallet, Transaction, PaymentCard, TopUpRequest } from '../types';
 import * as FirestoreService from '../services/firebase/firestore';
+import * as WalletService from '../services/firebase/wallet';
 import PaystackService, { PaystackResponse } from '../services/paystack/PaystackService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth } from '../services/firebase/config';
@@ -41,40 +42,32 @@ class WalletStore {
       console.log('Fetching wallet for user:', userId);
       console.log('Current authenticated user:', auth.currentUser.uid);
 
-      const constraints = [
-        FirestoreService.createWhereConstraint('userId', '==', userId),
-        FirestoreService.createLimitConstraint(1)
-      ];
+      // Use the new Firebase wallet service
+      const walletData = await WalletService.getOrCreateWallet(
+        userId,
+        userEmail || '',
+        userName?.split(' ')[0],
+        userName?.split(' ')[1]
+      );
       
-      const wallets = await FirestoreService.queryDocuments<Wallet>('wallets', constraints);
+      // Convert WalletData to Wallet type
+      const wallet: Wallet = {
+        id: userId, // Use userId as the wallet ID
+        userId: walletData.userId,
+        balance: walletData.balance,
+        name: walletData.name,
+        email: walletData.email,
+        totalDeposit: walletData.totalDeposit,
+        totalSpent: walletData.totalSpent
+      };
       
-      if (wallets.length > 0) {
-        runInAction(() => {
-          this.wallet = wallets[0];
-          this.isLoading = false;
-        });
-        return wallets[0];
-      } else {
-        // Create a new wallet if none exists
-        const newWallet: Wallet = {
-          userId,
-          balance: 0,
-          name: userName ?? 'User',
-          email: userEmail ?? '',
-          totalDeposit: 0,
-          totalSpent: 0
-        };
-        
-        const walletId = await FirestoreService.addDocument('wallets', newWallet);
-        const createdWallet = await FirestoreService.getDocument<Wallet>('wallets', walletId);
-        
-        runInAction(() => {
-          this.wallet = createdWallet;
-          this.isLoading = false;
-        });
-        
-        return createdWallet;
-      }
+      runInAction(() => {
+        this.wallet = wallet;
+        this.isLoading = false;
+        console.log("wallet fetched:", wallet);
+      });
+      
+      return wallet;
     } catch (error: any) {
       runInAction(() => {
         this.error = `Error loading wallet data: ${error.message}`;
@@ -85,18 +78,55 @@ class WalletStore {
     }
   };
 
+  // Helper function to safely convert various date formats to Date object
+  private safeConvertToDate = (dateValue: any): Date => {
+    if (!dateValue) {
+      return new Date(); // Return current date if undefined/null
+    }
+    
+    if (dateValue instanceof Date) {
+      return dateValue;
+    }
+    
+    // Handle Firestore Timestamp
+    if (dateValue && typeof dateValue.toDate === 'function') {
+      return dateValue.toDate();
+    }
+    
+    // Handle timestamp objects with seconds property
+    if (dateValue && typeof dateValue.seconds === 'number') {
+      return new Date(dateValue.seconds * 1000);
+    }
+    
+    // Try to parse as string or number
+    const parsedDate = new Date(dateValue);
+    return isNaN(parsedDate.getTime()) ? new Date() : parsedDate;
+  };
+
   // Fetch wallet transactions
   fetchTransactions = async (userId: string) => {
     this.isLoading = true;
     this.error = null;
     try {
-      // Query transactions by userId since that's what exists in the collection
-      const constraints = [
-        FirestoreService.createWhereConstraint('userId', '==', userId),
-        FirestoreService.createLimitConstraint(50) // Limit to recent 50 transactions
-      ];
+      // Use the new Firebase wallet service to get transactions
+      const transactionData = await WalletService.getUserTransactions(userId);
       
-      const transactions = await FirestoreService.queryDocuments<Transaction>('transactions', constraints);
+      // Convert TransactionData to Transaction type
+       const transactions: Transaction[] = transactionData.map((tx, index) => {
+           const safeDate = this.safeConvertToDate(tx.date);
+           return {
+             id: `${userId}_${index}_${safeDate.getTime()}`, // Generate unique ID with safe date
+             userId,
+             amount: tx.amount,
+             type: tx.type === 'credit' ? 'deposit' : 'payment', // Map to existing types
+             description: tx.description || `${tx.type === 'credit' ? 'Deposit' : 'Payment'} of ₦${tx.amount}`,
+             status: (tx.status === 'success' ? 'completed' : tx.status) as 'Success' | 'Failed' | 'pending' | 'completed' | 'failed' | 'cancelled',
+             reference: tx.reference || undefined,
+             date: safeDate,
+             createdAt: safeDate,
+             updatedAt: safeDate
+           };
+         });
       
       // Sort transactions locally by date desc
       const sortedTransactions = transactions.sort((a, b) => {
@@ -369,51 +399,51 @@ class WalletStore {
     }
   };
 
+  // Helper function to extract firstName and lastName from displayName
+  private extractNames = (displayName?: string): { firstName: string; lastName: string } => {
+    if (!displayName) {
+      return { firstName: 'User', lastName: 'User' };
+    }
+    
+    const names = displayName.trim().split(' ');
+    const firstName = names[0] || 'User';
+    const lastName = names.length > 1 ? names.slice(1).join(' ') : 'User';
+    
+    return { firstName, lastName };
+  };
+
   // Complete top-up after successful payment
-  completeTopUp = async (request: TopUpRequest, reference: string) => {
+  completeTopUp = async (request: TopUpRequest, reference: string, status: string = 'success') => {
     try {
       if (!this.wallet) {
         throw new Error('Wallet not found');
       }
+
+      // Validate payment status (matching web app logic)
+      if (status !== "success") {
+        throw new Error("Payment failed");
+      }
+
+      // Extract firstName and lastName from user's displayName
+      const { firstName, lastName } = this.extractNames(this.wallet.name);
       
-      // Create a new transaction
-      const transaction: Transaction = {
-        id: '',
-        userId: this.wallet.userId, // Use userId from wallet instead of request.walletId
-        amount: request.amount,
-        type: 'Credit', // Use 'Credit' to match your Firestore data
-        status: 'Success', // Use 'Success' to match your Firestore data
-        description: `Wallet top-up via ${request.paymentMethod}`,
+      // Use the new Firebase wallet service for credit operation
+      await WalletService.processWalletCredit(
+        this.wallet.userId,
+        request.amount,
+        this.wallet.email,
+        firstName,
+        lastName,
         reference,
-        date: new Date(), // Use 'date' field to match your Firestore data
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
+        reference, // transId
+        status
+      );
       
-      const transactionId = await FirestoreService.addDocument('transactions', transaction);
+      // Refresh wallet and transactions data
+      await this.fetchUserWallet(this.wallet.userId);
+      await this.fetchTransactions(this.wallet.userId);
       
-      // Update wallet balance
-      const newBalance = this.wallet.balance + request.amount;
-      
-      await FirestoreService.updateDocument('wallets', this.wallet.id, {
-        balance: newBalance
-      });
-      
-      runInAction(() => {
-        if (this.wallet) {
-          this.wallet.balance = newBalance;
-        }
-        
-        // Add the new transaction to the list
-        const newTransaction = {
-          ...transaction,
-          id: transactionId
-        };
-        
-        this.transactions = [newTransaction, ...this.transactions];
-      });
-      
-      return transactionId;
+      return reference;
     } catch (error: any) {
       runInAction(() => {
         this.error = error.message;
@@ -475,7 +505,7 @@ class WalletStore {
     this.isLoading = true;
     this.error = null;
     try {
-      if (!this.wallet || this.wallet.id !== walletId) {
+      if (!this.wallet || this.wallet.userId !== walletId) {
         throw new Error('Wallet not found');
       }
 
@@ -483,34 +513,108 @@ class WalletStore {
         throw new Error('Insufficient wallet balance');
       }
 
-      // Create transaction record
-      const transaction: Omit<Transaction, 'id'> = {
-        userId: this.wallet.userId, // Use userId from wallet instead of walletId
-        amount: -amount, // Negative for payment
-        type: 'payment',
-        status: 'Success', // Use 'Success' to match your Firestore data
+      // Use the new Firebase wallet service for debit operation
+      await WalletService.processWalletDebit(
+        this.wallet.userId,
+        amount,
+        this.wallet.email,
         description,
-        reference: orderId,
-        date: new Date(), // Use 'date' field to match your Firestore data
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
+        undefined, // firstName
+        undefined, // lastName
+        orderId // reference
+      );
 
-      const transactionId = await FirestoreService.addDocument('transactions', transaction);
-      
-      // Update wallet balance
-      const newBalance = this.wallet.balance - amount;
-      await this.updateWalletBalance(walletId, newBalance);
+      // Refresh wallet and transactions data
+      await this.fetchUserWallet(this.wallet.userId);
+      await this.fetchTransactions(this.wallet.userId);
 
-      // Add transaction to local state
-      const createdTransaction = await FirestoreService.getDocument<Transaction>('transactions', transactionId);
-      if (createdTransaction) {
-        runInAction(() => {
-          this.transactions = [createdTransaction, ...this.transactions];
-        });
-      }
+      runInAction(() => {
+        this.isLoading = false;
+      });
 
-      return { success: true, transactionId, newBalance };
+      return { success: true, newBalance: this.wallet?.balance || 0 };
+    } catch (error: any) {
+      runInAction(() => {
+        this.error = error.message;
+        this.isLoading = false;
+      });
+      throw error;
+    }
+  };
+
+  // Credit wallet using Firebase service (matches web app structure)
+  creditWallet = async (
+    userId: string,
+    amount: number,
+    email: string,
+    reference?: string,
+    transId?: string,
+    firstName?: string,
+    lastName?: string
+  ) => {
+    this.isLoading = true;
+    this.error = null;
+    try {
+      await WalletService.processWalletCredit(
+        userId,
+        amount,
+        email,
+        firstName,
+        lastName,
+        reference,
+        transId
+      );
+
+      // Refresh wallet and transactions data
+      await this.fetchUserWallet(userId);
+      await this.fetchTransactions(userId);
+
+      runInAction(() => {
+        this.isLoading = false;
+      });
+
+      return { success: true };
+    } catch (error: any) {
+      runInAction(() => {
+        this.error = error.message;
+        this.isLoading = false;
+      });
+      throw error;
+    }
+  };
+
+  // Debit wallet using Firebase service (matches web app structure)
+  debitWallet = async (
+    userId: string,
+    amount: number,
+    email: string,
+    description: string,
+    firstName?: string,
+    lastName?: string,
+    reference?: string
+  ) => {
+    this.isLoading = true;
+    this.error = null;
+    try {
+      await WalletService.processWalletDebit(
+        userId,
+        amount,
+        email,
+        description,
+        firstName,
+        lastName,
+        reference
+      );
+
+      // Refresh wallet and transactions data
+      await this.fetchUserWallet(userId);
+      await this.fetchTransactions(userId);
+
+      runInAction(() => {
+        this.isLoading = false;
+      });
+
+      return { success: true };
     } catch (error: any) {
       runInAction(() => {
         this.error = error.message;
