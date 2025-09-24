@@ -12,6 +12,48 @@ export class CouponService {
     return CouponService.instance;
   }
 
+  async getAllUserCoupons(userId?: string): Promise<Coupon[]> {
+    try {
+      const couponCodesRef = collection(firestore, 'couponCodes');
+      let q = query(couponCodesRef, where('isActive', '==', true));
+      
+      // If userId is provided, filter by user-specific coupons
+      // For now, we'll get all active coupons since the structure doesn't show user-specific filtering
+      
+      const querySnapshot = await getDocs(q);
+      const coupons: Coupon[] = [];
+      
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        const coupon: Coupon = {
+          id: doc.id,
+          applicableCategories: data.applicableCategories || [],
+          applicableProducts: data.applicableProducts || [],
+          code: data.code,
+          discountAmount: data.discountAmount,
+          discountType: data.discountType,
+          expirationDate: data.expirationDate?.toDate() || new Date(),
+          isActive: data.isActive,
+          minSpend: data.minSpend || 0,
+          name: data.name,
+          oneTimeUse: data.oneTimeUse || false,
+          purpose: data.purpose,
+          slug: data.slug,
+        };
+        
+        // Only include non-expired coupons
+        if (coupon.expirationDate > new Date()) {
+          coupons.push(coupon);
+        }
+      });
+      
+      return coupons;
+    } catch (error) {
+      console.error('Error fetching user coupons:', error);
+      return [];
+    }
+  }
+
   async validateCoupon(
     code: string, 
     orderTotal: number, 
@@ -35,35 +77,20 @@ export class CouponService {
         };
       }
 
-      // Check validity dates
+      // Check expiration date
       const now = new Date();
-      if (now < coupon.validFrom) {
-        return {
-          isValid: false,
-          message: 'This coupon is not yet valid'
-        };
-      }
-
-      if (now > coupon.validUntil) {
+      if (now > coupon.expirationDate) {
         return {
           isValid: false,
           message: 'This coupon has expired'
         };
       }
 
-      // Check usage limit
-      if (coupon.usageLimit && coupon.usedCount >= coupon.usageLimit) {
+      // Check minimum spend amount
+      if (coupon.minSpend && orderTotal < coupon.minSpend) {
         return {
           isValid: false,
-          message: 'This coupon has reached its usage limit'
-        };
-      }
-
-      // Check minimum order amount
-      if (coupon.minimumOrderAmount && orderTotal < coupon.minimumOrderAmount) {
-        return {
-          isValid: false,
-          message: `Minimum order amount of ₦${coupon.minimumOrderAmount} required`
+          message: `Minimum order amount of ₦${coupon.minSpend} required`
         };
       }
 
@@ -87,8 +114,8 @@ export class CouponService {
 
   private async getCouponByCode(code: string): Promise<Coupon | null> {
     try {
-      const couponsRef = collection(firestore, 'coupons');
-      const q = query(couponsRef, where('code', '==', code.toUpperCase()));
+      const couponCodesRef = collection(firestore, 'couponCodes');
+      const q = query(couponCodesRef, where('code', '==', code.toUpperCase()));
       const querySnapshot = await getDocs(q);
       
       if (querySnapshot.empty) {
@@ -100,21 +127,18 @@ export class CouponService {
       
       return {
         id: doc.id,
-        code: data.code,
-        title: data.title,
-        description: data.description,
-        discountType: data.discountType,
-        discountValue: data.discountValue,
-        minimumOrderAmount: data.minimumOrderAmount,
-        maximumDiscountAmount: data.maximumDiscountAmount,
-        usageLimit: data.usageLimit,
-        usedCount: data.usedCount || 0,
-        isActive: data.isActive,
-        validFrom: data.validFrom?.toDate() || new Date(),
-        validUntil: data.validUntil?.toDate() || new Date(),
         applicableCategories: data.applicableCategories || [],
-        createdAt: data.createdAt?.toDate() || new Date(),
-        updatedAt: data.updatedAt?.toDate() || new Date(),
+        applicableProducts: data.applicableProducts || [],
+        code: data.code,
+        discountAmount: data.discountAmount,
+        discountType: data.discountType,
+        expirationDate: data.expirationDate?.toDate() || new Date(),
+        isActive: data.isActive,
+        minSpend: data.minSpend || 0,
+        name: data.name,
+        oneTimeUse: data.oneTimeUse || false,
+        purpose: data.purpose,
+        slug: data.slug,
       };
     } catch (error) {
       console.error('Error fetching coupon:', error);
@@ -124,16 +148,12 @@ export class CouponService {
 
   private calculateDiscountAmount(coupon: Coupon, orderTotal: number): number {
     let discountAmount = 0;
+    const discountValue = parseFloat(coupon.discountAmount);
 
     if (coupon.discountType === 'percentage') {
-      discountAmount = (orderTotal * coupon.discountValue) / 100;
-      
-      // Apply maximum discount limit if specified
-      if (coupon.maximumDiscountAmount && discountAmount > coupon.maximumDiscountAmount) {
-        discountAmount = coupon.maximumDiscountAmount;
-      }
+      discountAmount = (orderTotal * discountValue) / 100;
     } else if (coupon.discountType === 'fixed_amount') {
-      discountAmount = coupon.discountValue;
+      discountAmount = discountValue;
       
       // Don't allow discount to exceed order total
       if (discountAmount > orderTotal) {

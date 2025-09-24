@@ -112,7 +112,7 @@ const HomeScreen = observer(() => {
         onPress={() => handleProductPress(item.id)}
       >
         <View style={styles.productImageContainer}>
-          <Image source={{ uri: item.imageUrl || item.images?.[0] }} style={styles.productImage} />
+          <Image source={{ uri: item?.picture || item?.images?.[0] }} style={styles.productImage} />
           <TouchableOpacity 
             style={styles.wishlistButton}
             onPress={handleToggleWishlist}

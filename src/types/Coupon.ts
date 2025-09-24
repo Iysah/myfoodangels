@@ -1,20 +1,17 @@
 export interface Coupon {
-  id: string;
+  id?: string; // Firebase document ID
+  applicableCategories: string[];
+  applicableProducts: string[];
   code: string;
-  title: string;
-  description?: string;
+  discountAmount: string;
   discountType: 'percentage' | 'fixed_amount';
-  discountValue: number; // percentage (0-100) or fixed amount
-  minimumOrderAmount?: number;
-  maximumDiscountAmount?: number; // for percentage discounts
-  usageLimit?: number;
-  usedCount: number;
+  expirationDate: Date;
   isActive: boolean;
-  validFrom: Date;
-  validUntil: Date;
-  applicableCategories?: string[]; // empty array means all categories
-  createdAt: Date;
-  updatedAt: Date;
+  minSpend: number;
+  name: string;
+  oneTimeUse: boolean;
+  purpose: string;
+  slug: string;
 }
 
 export interface AppliedCoupon {

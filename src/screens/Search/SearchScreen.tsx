@@ -208,11 +208,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     margin: Spacing.xs,
     padding: Spacing.sm,
-    shadowColor: Colors.label,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    borderColor: Colors.border,
+    borderWidth: 1,
   },
   productImage: {
     width: '100%',

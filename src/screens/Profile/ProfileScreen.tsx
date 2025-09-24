@@ -165,6 +165,11 @@ const ProfileScreen = observer(() => {
           >
             <Text style={styles.signOutText}>Sign Out</Text>
           </TouchableOpacity>
+
+
+          <View style={styles.versionCode}>
+            <Text style={styles.versionCodeText}> Version 1.2.32</Text>
+          </View>
         </ScrollView>
       </SafeAreaProvider>
     </View>
@@ -262,6 +267,18 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
     alignItems: 'center',
     marginBottom: Spacing.md,
+  },
+  versionCode: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    // backgroundColor: Colors.background,
+    alignItems: 'center',
+  },
+  versionCodeText: {
+    fontSize: Typography.fontSize.sm,
+    fontFamily: Typography.fontFamily.medium,
+    color: Colors.textSecondary,
+    textAlign: 'center'
   },
   signOutText: {
     fontSize: Typography.fontSize.base,
