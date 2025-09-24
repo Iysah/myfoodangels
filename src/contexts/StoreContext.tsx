@@ -1,5 +1,5 @@
 import React, { createContext, useContext, ReactNode, useMemo } from 'react';
-import { AuthStore } from '../stores/AuthStore';
+import authStoreInstance, { AuthStore } from '../stores/AuthStore';
 import { ProductStore } from '../stores/ProductStore';
 import { CartStore } from '../stores/CartStore';
 import { OrderStore } from '../stores/OrderStore';
@@ -27,7 +27,7 @@ interface StoreProviderProps {
 
 export const StoreProvider: React.FC<StoreProviderProps> = ({ children }) => {
   const stores = useMemo(() => ({
-    authStore: new AuthStore(),
+    authStore: authStoreInstance,
     productStore: new ProductStore(),
     cartStore: new CartStore(),
     orderStore: new OrderStore(),

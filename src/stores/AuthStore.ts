@@ -1,15 +1,17 @@
 import { makeAutoObservable, runInAction } from 'mobx';
-import { User } from '../types';
+import { User, AddressDetails } from '../types';
 import * as AuthService from '../services/firebase/auth';
 import { auth } from '../services/firebase/config';
 import { User as FirebaseUser } from 'firebase/auth';
-import { LoystarAPI, LoystarAuthResponse } from '../services/loystar';
+import { LoystarAPI, LoystarAuthResponse, LoystarRegistrationRequest } from '../services/loystar';
+import { updateDocument, setDocument, createTimestamp } from '../services/firebase/firestore';
 
 class AuthStore {
   user: User | null = null;
   isLoading: boolean = false;
   error: string | null = null;
-  isAuthenticated: boolean = false;
+  isFirebaseAuthenticated: boolean = false;
+  isLoystarAuthenticated: boolean = false;
   isGuest: boolean = false;
   loystarData: LoystarAuthResponse | null = null;
   loystarToken: string | null = null;
@@ -17,6 +19,11 @@ class AuthStore {
   constructor() {
     makeAutoObservable(this);
     this.initializeAuthState();
+  }
+
+  // Computed property: user is only authenticated if both Firebase and Loystar auth succeed
+  get isAuthenticated(): boolean {
+    return this.isFirebaseAuthenticated && this.isLoystarAuthenticated && !this.isGuest;
   }
 
   initializeAuthState = () => {
@@ -30,14 +37,21 @@ class AuthStore {
             email: firebaseUser.email || undefined,
             phoneNumber: firebaseUser.phoneNumber || undefined,
             displayName: firebaseUser.displayName || undefined,
+            // firstName: firebaseUser?.firstName || undefined,
+            // lastName: firebaseUser?.lastName || undefined,
             photoURL: firebaseUser.photoURL || undefined,
             createdAt: new Date(),
             updatedAt: new Date(),
           };
-          this.isAuthenticated = true;
+          this.isFirebaseAuthenticated = true;
+          // Note: Loystar authentication status is maintained separately
         } else {
           this.user = null;
-          this.isAuthenticated = false;
+          this.isFirebaseAuthenticated = false;
+          // Reset Loystar authentication when Firebase auth is lost
+          this.isLoystarAuthenticated = false;
+          this.loystarData = null;
+          this.loystarToken = null;
         }
         this.isLoading = false;
         this.error = null;
@@ -47,20 +61,107 @@ class AuthStore {
     return unsubscribe;
   };
 
-  registerWithEmail = async (email: string, password: string) => {
+  registerWithEmail = async (
+    email: string, 
+    password: string, 
+    additionalData?: {
+      firstName?: string;
+      lastName?: string;
+      phoneNumber?: string;
+      dateOfBirth?: string;
+      sex?: string;
+      addressLine1?: string;
+      addressLine2?: string;
+      postcode?: string;
+      state?: string;
+      country?: string;
+    }
+  ) => {
     this.isLoading = true;
     this.error = null;
+    
+    let firebaseUser: any = null;
+    let loystarRegistered = false;
+    
     try {
-      const user = await AuthService.registerWithEmail(email, password);
-      runInAction(() => {
-        this.isLoading = false;
-      });
-      return user;
+      console.log('Starting dual registration process for:', email);
+      
+      // First, register with Firebase
+      firebaseUser = await AuthService.registerWithEmail(email, password);
+      console.log('Firebase registration successful:', firebaseUser);
+      
+      // Then, register with Loystar using the provided data
+      try {
+        console.log('Attempting Loystar registration...');
+        
+        const loystarData: LoystarRegistrationRequest = {
+          data: {
+            first_name: additionalData?.firstName || '',
+            last_name: additionalData?.lastName || '',
+            email: email,
+            phone_number: additionalData?.phoneNumber || '',
+            date_of_birth: additionalData?.dateOfBirth || 'NIL',
+            sex: additionalData?.sex || 'NIL',
+            local_db_created_at: 'NIL',
+            address_line1: additionalData?.addressLine1 || 'NIL',
+            address_line2: additionalData?.addressLine2 || 'NIL',
+            postcode: additionalData?.postcode ? parseInt(additionalData.postcode) : 0,
+            state: additionalData?.state || 'NIL',
+            country: additionalData?.country || 'NIL',
+          }
+        };
+        
+        const loystarResponse = await LoystarAPI.registerUser(loystarData);
+        loystarRegistered = true;
+        
+        runInAction(() => {
+          this.loystarData = loystarResponse;
+          this.loystarToken = loystarResponse.token;
+          this.isLoystarAuthenticated = true;
+          this.isLoading = false;
+        });
+        
+        console.log('Loystar registration successful:', loystarResponse);
+        console.log('Loystar token saved:', loystarResponse.token);
+        
+        return firebaseUser;
+        
+      } catch (loystarError: any) {
+        console.error('Loystar registration failed:', loystarError.message);
+        
+        // If Loystar registration fails, delete the Firebase user to maintain consistency
+        if (firebaseUser) {
+          try {
+            await firebaseUser.delete();
+            console.log('Firebase user deleted due to Loystar registration failure');
+          } catch (deleteError) {
+            console.error('Failed to delete Firebase user:', deleteError);
+          }
+        }
+        
+        runInAction(() => {
+          this.error = `Registration failed: ${loystarError.message}`;
+          this.isLoading = false;
+          this.isFirebaseAuthenticated = false;
+          this.isLoystarAuthenticated = false;
+          this.user = null;
+        });
+        
+        throw new Error(`Registration failed: Unable to create account on both systems. ${loystarError.message}`);
+      }
+      
     } catch (error: any) {
+      console.error('Registration error:', error);
+      
+      // If Firebase registration failed, no need to rollback
       runInAction(() => {
         this.error = error.message;
         this.isLoading = false;
+        this.isFirebaseAuthenticated = false;
+        this.isLoystarAuthenticated = false;
+        this.user = null;
       });
+      
       throw error;
     }
   };
@@ -75,7 +176,7 @@ class AuthStore {
       const user = await AuthService.loginWithEmail(email, password);
       console.log('Firebase login successful:', user);
       
-      // Then, authenticate with Loystar using the email
+      // Then, authenticate with Loystar using the email - BOTH must succeed
       try {
         console.log('Attempting Loystar authentication...');
         const loystarResponse = await LoystarAPI.loginWithEmail(email);
@@ -83,6 +184,7 @@ class AuthStore {
         runInAction(() => {
           this.loystarData = loystarResponse;
           this.loystarToken = loystarResponse.token;
+          this.isLoystarAuthenticated = true; // Set Loystar auth success
           this.isLoading = false;
         });
         
@@ -90,11 +192,17 @@ class AuthStore {
         console.log('Loystar token saved:', loystarResponse.token);
         
       } catch (loystarError: any) {
-        console.warn('Loystar authentication failed, but Firebase login succeeded:', loystarError.message);
-        // Don't fail the entire login if Loystar fails
+        console.error('Loystar authentication failed:', loystarError.message);
+        // If Loystar fails, logout from Firebase and fail the entire login
+        await AuthService.logout();
         runInAction(() => {
+          this.error = `Authentication failed: ${loystarError.message}`;
           this.isLoading = false;
+          this.isFirebaseAuthenticated = false;
+          this.isLoystarAuthenticated = false;
+          this.user = null;
         });
+        throw new Error(`Complete authentication failed: ${loystarError.message}`);
       }
       
       return user;
@@ -103,6 +211,8 @@ class AuthStore {
       runInAction(() => {
         this.error = error.message;
         this.isLoading = false;
+        this.isFirebaseAuthenticated = false;
+        this.isLoystarAuthenticated = false;
       });
       throw error;
     }
@@ -169,7 +279,8 @@ class AuthStore {
       await AuthService.logout();
       runInAction(() => {
         this.user = null;
-        this.isAuthenticated = false;
+        this.isFirebaseAuthenticated = false;
+        this.isLoystarAuthenticated = false;
         this.loystarData = null;
         this.loystarToken = null;
         this.isLoading = false;
@@ -244,9 +355,103 @@ class AuthStore {
     }
   };
 
+  // Comprehensive profile update method
+  updateUserProfile = async (profileData: {
+    displayName?: string;
+    firstName?: string;
+    lastName?: string;
+    phone?: string;
+    photoURL?: string;
+    addressDetails?: AddressDetails;
+  }) => {
+    if (!this.user) {
+      throw new Error('No user found. Please log in again.');
+    }
+    
+    this.isLoading = true;
+    this.error = null;
+    
+    try {
+      const currentUser = AuthService.getCurrentUser();
+      if (!currentUser) {
+        throw new Error('No authenticated user found.');
+      }
+
+      // Update Firebase Auth profile (displayName and photoURL only)
+      if (profileData.displayName || profileData.photoURL) {
+        await AuthService.updateUserProfile(
+          currentUser, 
+          profileData.displayName, 
+          profileData.photoURL
+        );
+      }
+
+      // Prepare user data for Firestore
+      const userDataForFirestore = {
+        id: this.user.id,
+        email: this.user.email,
+        displayName: profileData.displayName || this.user.displayName,
+        firstName: profileData.firstName || this.user.firstName,
+        lastName: profileData.lastName || this.user.lastName,
+        phone: profileData.phone || this.user.phone,
+        phoneNumber: this.user.phoneNumber, // Keep existing phoneNumber
+        photoURL: profileData.photoURL || this.user.photoURL,
+        addressDetails: profileData.addressDetails || this.user.addressDetails,
+        createdAt: this.user.createdAt,
+        updatedAt: createTimestamp(),
+        // Preserve existing fields
+        address: this.user.address,
+        favoriteProducts: this.user.favoriteProducts,
+        recentlyWishListProducts: this.user.recentlyWishListProducts,
+        notificationSettings: this.user.notificationSettings,
+      };
+
+      // Save to Firestore users collection
+      await setDocument('users', this.user.id, userDataForFirestore);
+
+      // Update local user state
+      runInAction(() => {
+        if (this.user) {
+          this.user.displayName = profileData.displayName || this.user.displayName;
+          this.user.firstName = profileData.firstName || this.user.firstName;
+          this.user.lastName = profileData.lastName || this.user.lastName;
+          this.user.phone = profileData.phone || this.user.phone;
+          this.user.photoURL = profileData.photoURL || this.user.photoURL;
+          this.user.addressDetails = profileData.addressDetails || this.user.addressDetails;
+          this.user.updatedAt = new Date();
+        }
+        this.isLoading = false;
+      });
+
+      return true;
+    } catch (error: any) {
+      runInAction(() => {
+        this.error = error.message;
+        this.isLoading = false;
+      });
+      throw error;
+    }
+  };
+
   // Register method (alias for registerWithEmail)
-  register = async (email: string, password: string, additionalData?: { displayName?: string }) => {
-    const user = await this.registerWithEmail(email, password);
+  register = async (
+    email: string, 
+    password: string, 
+    additionalData?: { 
+      displayName?: string;
+      firstName?: string;
+      lastName?: string;
+      phoneNumber?: string;
+      dateOfBirth?: string;
+      sex?: string;
+      addressLine1?: string;
+      addressLine2?: string;
+      postcode?: string;
+      state?: string;
+      country?: string;
+    }
+  ) => {
+    const user = await this.registerWithEmail(email, password, additionalData);
     if (additionalData?.displayName && user) {
       await this.updateProfile(additionalData.displayName);
     }
@@ -294,7 +499,8 @@ class AuthStore {
   enterGuestMode = () => {
     runInAction(() => {
       this.isGuest = true;
-      this.isAuthenticated = false;
+      this.isFirebaseAuthenticated = false;
+      this.isLoystarAuthenticated = false;
       this.user = null;
       this.error = null;
     });

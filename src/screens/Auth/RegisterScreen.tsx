@@ -63,36 +63,22 @@ const RegisterScreen = observer(() => {
 
     setIsLoading(true);
     try {
-      // First register with Loystar API
-      const loystarResponse = await fetch('https://api.loystar.co/api/v2/add_user_for_merchant/22244', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          data: {
-            first_name: firstName,
-            last_name: lastName,
-            email: email,
-            phone_number: phoneNumber,
-            date_of_birth: "NIL",
-            sex: "NIL",
-            local_db_created_at: "NIL",
-            address_line1: "NIL",
-            address_line2: "NIL",
-            postcode: "NIL",
-            state: "NIL",
-            country: "NIL"
-          }
-        })
+      // Register with both Firebase and Loystar using the AuthStore
+      await authStore.register(email, password, {
+        displayName: `${firstName} ${lastName}`,
+        firstName: firstName,
+        lastName: lastName,
+        phoneNumber: phoneNumber,
+        // Default values for required Loystar fields
+        dateOfBirth: "NIL",
+        sex: "NIL",
+        addressLine1: "NIL",
+        addressLine2: "NIL",
+        postcode: "0",
+        state: "NIL",
+        country: "NIL"
       });
-
-      if (!loystarResponse.ok) {
-        throw new Error('Failed to register with Loystar');
-      }
-
-      // Then register with Firebase
-      await authStore.register(email, password, { displayName: `${firstName} ${lastName}` });
+      
       ToastService.success('Your account has been created successfully');
       
       // Navigate back if returnTo is provided, otherwise let root navigator handle it

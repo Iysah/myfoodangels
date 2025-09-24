@@ -26,7 +26,7 @@ import { useStores } from '../../contexts/StoreContext';
 import { Wallet, CreditCard, Landmark, Smartphone } from 'lucide-react-native';
 import Constants from 'expo-constants';
 import PaystackService from '../../services/paystack/PaystackService';
-import { setDocument } from '../../services/firebase/firestore';
+import { setDocument, addDocument, createTimestamp, getDocument, updateDocument } from '../../services/firebase/firestore';
 import { LoystarAPI } from '../../services/loystar/api';
 
 const CheckoutScreen = observer(() => {
@@ -38,14 +38,17 @@ const CheckoutScreen = observer(() => {
   
   // Billing Address State
   const [billingAddress, setBillingAddress] = useState<CheckoutBillingAddress>({
-    fullName: authStore.user?.displayName || '',
+    fullName: authStore.user?.displayName || 
+              (authStore.user?.firstName && authStore.user?.lastName 
+                ? `${authStore.user.firstName} ${authStore.user.lastName}` 
+                : ''),
     email: authStore.user?.email || '',
-    phoneNumber: authStore.user?.phoneNumber || '',
-    deliveryAddress: '',
-    city: '',
-    state: '',
-    postalCode: '',
-    country: 'Nigeria',
+    phoneNumber: authStore.user?.phone || authStore.user?.phoneNumber || '',
+    deliveryAddress: authStore.user?.addressDetails?.address || '',
+    city: authStore.user?.addressDetails?.city || '',
+    state: authStore.user?.addressDetails?.state || '',
+    postalCode: authStore.user?.addressDetails?.zipcode || '',
+    country: authStore.user?.addressDetails?.country || '',
   });
   
   // Delivery Location State
@@ -104,12 +107,20 @@ const CheckoutScreen = observer(() => {
     if (authStore.user) {
       walletStore.fetchUserWallet(authStore.user.id, authStore.user.email, authStore.user.displayName || authStore.user.email);
       
-      // Update billing address with user data
+      // Update billing address with comprehensive user data
       setBillingAddress(prev => ({
         ...prev,
-        fullName: authStore.user?.displayName || prev.fullName,
+        fullName: authStore.user?.displayName || 
+                  (authStore.user?.firstName && authStore.user?.lastName 
+                    ? `${authStore.user.firstName} ${authStore.user.lastName}` 
+                    : prev.fullName),
         email: authStore.user?.email || prev.email,
-        phoneNumber: authStore.user?.phoneNumber || prev.phoneNumber,
+        phoneNumber: authStore.user?.phone || authStore.user?.phoneNumber || prev.phoneNumber,
+        deliveryAddress: authStore.user?.addressDetails?.address || prev.deliveryAddress,
+        city: authStore.user?.addressDetails?.city || prev.city,
+        state: authStore.user?.addressDetails?.state || prev.state,
+        postalCode: authStore.user?.addressDetails?.zipcode || prev.postalCode,
+        country: authStore.user?.addressDetails?.country || prev.country,
       }));
     }
     const publicKey = process.env.EXPO_PUBLIC_PAYSTACK_PUBLIC_TEST_KEY;
@@ -352,6 +363,11 @@ const CheckoutScreen = observer(() => {
 
       // Create order first
       const orderId = await orderStore.createOrder(orderData);
+      
+      // Ensure orderId is valid
+      if (!orderId) {
+        throw new Error('Failed to create order');
+      }
 
       // Process payment based on type
       let paymentSuccess = false;
@@ -362,7 +378,7 @@ const CheckoutScreen = observer(() => {
         await walletStore.processWalletPayment(
           walletStore.wallet.id,
           orderData.total,
-          orderId,
+          orderId!,
           `Order payment for ${cartStore.itemCount} items`
         );
         paymentSuccess = true;
@@ -482,8 +498,8 @@ const CheckoutScreen = observer(() => {
         const verificationResponse = await paystackService.verifyTransaction(currentPaymentReference);
         
         if (verificationResponse.status && verificationResponse.data.status === 'success') {
-          // Payment successful - complete the order
-          await completePaymentAndOrder();
+          // Payment successful - create the order
+          await createOrder(currentPaymentReference);
         } else {
           // Payment failed
           handlePaymentFailure('Payment verification failed');
@@ -498,14 +514,32 @@ const CheckoutScreen = observer(() => {
     }
   };
 
-  // Complete payment and order after successful Paystack payment
-  const completePaymentAndOrder = async () => {
+  // Create order after successful payment
+  const createOrder = async (reference: string) => {
     try {
       setShowPaymentWebView(false);
       setIsProcessing(true);
 
-      // Save order to Firebase
-      await saveOrderToFirebase(currentOrderData, currentOrderId, currentPaymentReference);
+      // Create order data matching web app format
+      const singleOrder = {
+        name: `${authStore.user?.displayName || authStore.user?.email?.split('@')[0] || 'User'}`,
+        firstName: authStore.user?.displayName?.split(' ')[0] || authStore.user?.email?.split('@')[0] || 'User',
+        lastName: authStore.user?.displayName?.split(' ')[1] || '',
+        email: authStore.user?.email || '',
+        totalAmount: currentOrderData.total,
+        address: `${billingAddress.deliveryAddress || ''}, ${billingAddress.state || ''}, ${billingAddress.country || ''}`,
+        phone: authStore.user?.phoneNumber || billingAddress.phoneNumber || '',
+        paymentReference: reference,
+        cartItems: cartStore.items,
+        orderId: reference,
+        status: "success",
+        userId: authStore.user?.id || authStore.user?.email || '',
+        created_date: createTimestamp(),
+      };
+
+      // Save order to Firebase using addDocument
+      await addDocument('orders', singleOrder);
+    
       
       // Send order to Loystar
       await sendOrderToLoystar(currentOrderData, currentOrderId);
@@ -520,14 +554,14 @@ const CheckoutScreen = observer(() => {
         [
           {
             text: 'OK',
-            onPress: () => navigation.navigate('OrderConfirmation', { orderId: currentOrderId }),
+            onPress: () => navigation.navigate('OrderConfirmation', { orderId: reference }),
           },
         ]
       );
     } catch (error: any) {
-      console.error('Order completion error:', error);
+      console.error('Order creation error:', error);
       setIsProcessing(false);
-      Alert.alert('Error', 'Payment was successful but there was an issue completing your order. Please contact support.');
+      Alert.alert('Error', 'Payment was successful but there was an issue creating your order. Please contact support.');
     }
   };
 
@@ -655,67 +689,65 @@ const CheckoutScreen = observer(() => {
   // Helper function to send order to Loystar
   const sendOrderToLoystar = async (orderData: any, orderId: string) => {
     try {
-      // Transform order data to Loystar format
+      // Transform order data to Loystar API v2 format
       const loystarData = {
-        sale: {
-          is_paid_with_cash: orderData.paymentMethod.type === 'wallet',
-          is_paid_with_card: orderData.paymentMethod.type === 'credit_card',
-          is_paid_with_mobile: false,
-          is_paid_with_mtransfer: orderData.paymentMethod.type === 'bank_transfer',
-          user_id: authStore.loystarData?.customer?.id || 0,
-          business_branch_id: null,
-          transactions: orderData.items.map((item: any) => ({
-            id: parseInt(item.productId),
-            merchant_product_category_id: 192, // Default category
-            name: item.productName,
-            description: null,
-            price: item.price.toString(),
-            cost_price: null,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            picture: item.productImage,
-            merchant_id: parseInt(process.env.EXPO_PUBLIC_MERCHANT_ID || '543'),
-            deleted: false,
-            merchant_loyalty_program_id: 493,
-            track_inventory: false,
-            sku: null,
-            unit: null,
-            quantity: item.quantity,
-            tax: false,
-            tax_type: null,
-            tax_rate: null,
-            original_price: item.price.toString(),
-            variants: [],
-            amount: item.totalPrice,
-            points: item.totalPrice, // 1:1 points ratio
-            stamps: 0,
-            product_id: parseInt(item.productId),
-            business_branch_id: null,
-            user_id: parseInt(authStore.user?.id || '0'),
-            program_type: 'SimplePoints',
-          })),
-        },
+        product_id: orderData.items.map((item: any) => parseInt(item.productId || item.product?.id)),
+        quantity: orderData.items.map((item: any) => item.quantity),
+        user_id: authStore.loystarData?.customer?.id || authStore.loystarData?.user?.id || 0,
+        amount: orderData.total,
+        merchant_id: parseInt(process.env.EXPO_PUBLIC_MERCHANT_ID || '543'),
+        payment_method: orderData.paymentMethod.type === 'wallet' ? 'cash' : 
+                       orderData.paymentMethod.type === 'credit_card' ? 'card' : 
+                       orderData.paymentMethod.type === 'bank_transfer' ? 'transfer' : 'card',
+        order_reference: orderId,
+        customer_email: authStore.user?.email || '',
+        customer_phone: authStore.user?.phoneNumber || '',
+        delivery_address: `${billingAddress.deliveryAddress || ''}, ${billingAddress.state || ''}, ${billingAddress.country || ''}`,
+        items: orderData.items.map((item: any) => ({
+          product_id: parseInt(item.productId || item.product?.id),
+          product_name: item.productName || item.product?.name,
+          quantity: item.quantity,
+          unit_price: item.price,
+          total_price: item.totalPrice,
+          points_earned: Math.floor(item.totalPrice), // 1:1 points ratio
+        })),
       };
 
-      // Send to Loystar API
-      const response = await fetch(`${process.env.EXPO_PUBLIC_LOYSTAR_BASE_URL}/sales`, {
+      console.log('Sending order to Loystar API v2:', loystarData);
+
+      // Send to Loystar API v2 endpoint
+      const response = await fetch('https://api.loystar.co/api/v2/sales', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${LoystarAPI.getAuthToken()}`,
+          'Authorization': `Bearer ${authStore.loystarToken || LoystarAPI.getAuthToken()}`,
+          'Accept': 'application/json',
         },
         body: JSON.stringify(loystarData),
       });
 
+      const responseText = await response.text();
+      console.log('Loystar API response status:', response.status);
+      console.log('Loystar API response:', responseText);
+
       if (!response.ok) {
-        throw new Error(`Loystar API error: ${response.status}`);
+        throw new Error(`Loystar API error: ${response.status} - ${responseText}`);
       }
 
-      const result = await response.json();
+      const result = JSON.parse(responseText);
       console.log('Order sent to Loystar successfully:', result);
+      
+      return result;
     } catch (error: any) {
       console.error('Failed to send order to Loystar:', error);
       // Don't throw error here as it shouldn't block the order completion
+      // But log detailed error for debugging
+      console.error('Loystar error details:', {
+        message: error.message,
+        orderData: orderData,
+        orderId: orderId,
+        loystarToken: authStore.loystarToken ? 'present' : 'missing',
+      });
     }
   };
 

@@ -12,7 +12,7 @@ import { observer } from 'mobx-react-lite';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { usePaystack } from 'react-native-paystack-webview';
 import walletStore from '../../stores/WalletStore';
-import authStore from '../../stores/AuthStore';
+import { useStores } from '../../contexts/StoreContext';
 import PaystackService from '../../services/paystack/PaystackService';
 import { GlobalStyles, Colors, Spacing } from '../../styles/globalStyles';
 import { PaymentCard } from '../../types';
@@ -31,12 +31,13 @@ const TopUpScreen: React.FC<TopUpScreenProps> = observer(() => {
   const navigation = useNavigation();
   const route = useRoute();
   const { suggestedAmount } = (route.params as RouteParams) || {};
-  const { popup } = usePaystack();
-
-  const [amount, setAmount] = useState(suggestedAmount?.toString() || '');
+  const { authStore } = useStores();
+  
+  const [amount, setAmount] = useState<string>(suggestedAmount?.toString() || '');
   const [selectedCard, setSelectedCard] = useState<PaymentCard | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  
+  const { popup } = usePaystack();
   const quickAmounts = [500, 1000, 2000, 5000, 10000, 20000];
 
   useEffect(() => {

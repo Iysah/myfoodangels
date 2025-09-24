@@ -13,7 +13,7 @@ import {
 import { observer } from 'mobx-react-lite';
 import { useNavigation } from '@react-navigation/native';
 import walletStore from '../../stores/WalletStore';
-import authStore from '../../stores/AuthStore';
+import { useStores } from '../../contexts/StoreContext';
 import { GlobalStyles, Colors } from '../../styles/globalStyles';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
@@ -23,6 +23,7 @@ interface AddCardScreenProps {}
 
 const AddCardScreen: React.FC<AddCardScreenProps> = observer(() => {
   const navigation = useNavigation();
+  const { authStore } = useStores();
 
   const [cardNumber, setCardNumber] = useState('');
   const [expiryDate, setExpiryDate] = useState('');

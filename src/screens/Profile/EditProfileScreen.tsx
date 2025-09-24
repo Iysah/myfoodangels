@@ -15,6 +15,7 @@ import { observer } from 'mobx-react-lite';
 import { useStores } from '../../contexts/StoreContext';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { Colors } from '../../styles/globalStyles';
 
 const EditProfileScreen = observer(() => {
   const { authStore } = useStores();
@@ -22,8 +23,19 @@ const EditProfileScreen = observer(() => {
   const [formData, setFormData] = useState({
     displayName: '',
     email: '',
+    firstName: '',
+    lastName: '',
     phoneNumber: '',
+    phone: '',
     photoURL: '',
+    addressDetails: {
+      address: '',
+      city: '',
+      company: '',
+      country: 'NG',
+      state: '',
+      zipcode: '',
+    },
   });
 
   useEffect(() => {
@@ -31,17 +43,39 @@ const EditProfileScreen = observer(() => {
       setFormData({
         displayName: authStore.user.displayName || '',
         email: authStore.user.email || '',
+        firstName: authStore.user.firstName || '',
+        lastName: authStore.user.lastName || '',
         phoneNumber: authStore.user.phoneNumber || '',
+        phone: authStore.user.phone || '',
         photoURL: authStore.user.photoURL || '',
+        addressDetails: {
+          address: authStore.user.addressDetails?.address || '',
+          city: authStore.user.addressDetails?.city || '',
+          company: authStore.user.addressDetails?.company || '',
+          country: authStore.user.addressDetails?.country || 'NG',
+          state: authStore.user.addressDetails?.state || '',
+          zipcode: authStore.user.addressDetails?.zipcode || '',
+        },
       });
     }
   }, [authStore.user]);
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value,
-    }));
+    if (field.startsWith('addressDetails.')) {
+      const addressField = field.split('.')[1];
+      setFormData(prev => ({
+        ...prev,
+        addressDetails: {
+          ...prev.addressDetails,
+          [addressField]: value,
+        },
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [field]: value,
+      }));
+    }
   };
 
   const pickImage = async () => {
@@ -86,6 +120,16 @@ const EditProfileScreen = observer(() => {
       return;
     }
 
+    if (!formData.firstName.trim()) {
+      Alert.alert('Validation Error', 'First name is required.');
+      return;
+    }
+
+    if (!formData.lastName.trim()) {
+      Alert.alert('Validation Error', 'Last name is required.');
+      return;
+    }
+
     if (!formData.email.trim()) {
       Alert.alert('Validation Error', 'Email is required.');
       return;
@@ -98,12 +142,38 @@ const EditProfileScreen = observer(() => {
       return;
     }
 
+    if (!formData.phone.trim()) {
+      Alert.alert('Validation Error', 'Phone number is required.');
+      return;
+    }
+
+    if (!formData.addressDetails.address.trim()) {
+      Alert.alert('Validation Error', 'Street address is required.');
+      return;
+    }
+
+    if (!formData.addressDetails.city.trim()) {
+      Alert.alert('Validation Error', 'City is required.');
+      return;
+    }
+
+    if (!formData.addressDetails.state.trim()) {
+      Alert.alert('Validation Error', 'State is required.');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      // Here you would typically update the user profile
-      // For now, we'll just show a success message
-      // In a real app, you'd call a service to update the profile
+      // Update user profile using the comprehensive method
+      await authStore.updateUserProfile({
+        displayName: formData.displayName,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        phone: formData.phone,
+        photoURL: formData.photoURL,
+        addressDetails: formData.addressDetails,
+      });
       
       Alert.alert(
         'Success',
@@ -119,7 +189,7 @@ const EditProfileScreen = observer(() => {
       );
     } catch (error: any) {
       console.error('Error updating profile:', error);
-      Alert.alert('Error', 'Failed to update profile. Please try again.');
+      Alert.alert('Error', error.message || 'Failed to update profile. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -199,6 +269,20 @@ const EditProfileScreen = observer(() => {
           )}
 
           {renderFormField(
+            'First Name',
+            formData.firstName,
+            (text) => handleInputChange('firstName', text),
+            'Enter your first name'
+          )}
+
+          {renderFormField(
+            'Last Name',
+            formData.lastName,
+            (text) => handleInputChange('lastName', text),
+            'Enter your last name'
+          )}
+
+          {renderFormField(
             'Email Address',
             formData.email,
             (text) => handleInputChange('email', text),
@@ -208,10 +292,54 @@ const EditProfileScreen = observer(() => {
 
           {renderFormField(
             'Phone Number',
-            formData.phoneNumber,
-            (text) => handleInputChange('phoneNumber', text),
+            formData.phone,
+            (text) => handleInputChange('phone', text),
             'Enter your phone number',
             'phone-pad'
+          )}
+
+          <Text style={styles.sectionTitle}>Address Information</Text>
+
+          {renderFormField(
+            'Street Address',
+            formData.addressDetails.address,
+            (text) => handleInputChange('addressDetails.address', text),
+            'Enter your street address'
+          )}
+
+          {renderFormField(
+            'City',
+            formData.addressDetails.city,
+            (text) => handleInputChange('addressDetails.city', text),
+            'Enter your city'
+          )}
+
+          {renderFormField(
+            'State',
+            formData.addressDetails.state,
+            (text) => handleInputChange('addressDetails.state', text),
+            'Enter your state'
+          )}
+
+          {renderFormField(
+            'Country',
+            formData.addressDetails.country,
+            (text) => handleInputChange('addressDetails.country', text),
+            'Enter your country'
+          )}
+
+          {renderFormField(
+            'Company (Optional)',
+            formData.addressDetails.company,
+            (text) => handleInputChange('addressDetails.company', text),
+            'Enter your company name'
+          )}
+
+          {renderFormField(
+            'Zip Code (Optional)',
+            formData.addressDetails.zipcode,
+            (text) => handleInputChange('addressDetails.zipcode', text),
+            'Enter your zip code'
           )}
         </View>
 
@@ -300,6 +428,13 @@ const styles = StyleSheet.create({
   form: {
     paddingHorizontal: 20,
   },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginTop: 20,
+    marginBottom: 16,
+  },
   formField: {
     marginBottom: 20,
   },
@@ -328,7 +463,7 @@ const styles = StyleSheet.create({
     paddingTop: 10,
   },
   saveButton: {
-    backgroundColor: '#FF6B35',
+    backgroundColor: Colors.primary,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',

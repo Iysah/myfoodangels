@@ -69,6 +69,29 @@ export interface LoystarLoginRequest {
   merchant_id: string;
 }
 
+export interface LoystarRegistrationRequest {
+  data: {
+    first_name: string;
+    last_name: string;
+    email: string;
+    phone_number: string;
+    date_of_birth: string;
+    sex: string;
+    local_db_created_at: string;
+    address_line1: string;
+    address_line2: string;
+    postcode: number;
+    state: string;
+    country: string;
+  };
+}
+
+export interface LoystarRegistrationResponse {
+  customer: LoystarCustomer;
+  user: LoystarUser;
+  token: string;
+}
+
 export interface LoystarProduct {
   id: number;
   merchant_product_category_id: number;
@@ -219,7 +242,29 @@ export class LoystarAPI {
     }
   }
 
-  // signup or add user
+  static async registerUser(userData: LoystarRegistrationRequest): Promise<LoystarRegistrationResponse> {
+    if (!this.baseURL || !this.merchantId) {
+      throw new Error('Loystar configuration is missing. Please check your environment variables.');
+    }
+
+    const endpoint = '/api/v2/add_user_for_merchant/22244';
+
+    try {
+      console.log('Loystar registration request:', { endpoint, body: userData });
+      
+      const response: AxiosResponse<LoystarRegistrationResponse> = await this.axiosInstance.post(endpoint, userData);
+      
+      console.log('Loystar registration success:', response.data);
+      
+      // Store the auth token for future requests
+      this.setAuthToken(response.data.token);
+      
+      return response.data;
+    } catch (error) {
+      console.error('Loystar registration error:', error);
+      throw error;
+    }
+  }
 
   static async fetchProducts(
     categoryId?: number,

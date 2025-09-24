@@ -233,7 +233,7 @@ const WalletScreen = observer(() => {
               <Text style={styles.topUpButtonText}>Top Up</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={[styles.actionButton, styles.addCardButton]}
               onPress={handleAddCard}
               disabled={walletStore.isCardLoading}
@@ -244,7 +244,7 @@ const WalletScreen = observer(() => {
                 <CreditCard size={20} color={Colors.primary} />
               )}
               <Text style={styles.addCardButtonText}>Add Card</Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </View>
 
           {/* Payment Cards */}
