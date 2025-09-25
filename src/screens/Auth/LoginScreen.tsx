@@ -19,10 +19,7 @@ import { BorderRadius, Colors, GlobalStyles, Spacing, Typography } from '../../s
 import { useStores } from '../../contexts/StoreContext';
 import ToastService from '../../utils/Toast';
 import { AuthStackParamList } from '../../navigation/types';
-<<<<<<< HEAD
 import { Eye, EyeClosed } from 'lucide-react-native';
-=======
->>>>>>> d72154d2ef68080001207d733f6189a7000d9fdd
 
 type LoginScreenRouteProp = RouteProp<AuthStackParamList, 'Login'>;
 
