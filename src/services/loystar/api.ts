@@ -1,7 +1,7 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
 
-const LOYSTAR_BASE_URL = process.env.EXPO_PUBLIC_LOYSTAR_BASE_URL;
-const MERCHANT_ID = process.env.EXPO_PUBLIC_MERCHANT_ID;
+const LOYSTAR_BASE_URL = 'https://api.loystar.co/api/v2/';
+const MERCHANT_ID = "22244";
 
 export interface LoystarCustomer {
   id: number;

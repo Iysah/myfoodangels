@@ -679,16 +679,16 @@ const styles = StyleSheet.create({
   },
   categoryCard: {
     borderRadius: 8,
-    margin: 4,
+    margin: 2,
     padding: Spacing.sm,
     alignItems: 'center',
     flex: 1,
     maxWidth: '30%',
   },
   categoryImage: {
-    width: 60,
+    width: 80,
     height: 60,
-    borderRadius: 30,
+    borderRadius: 8,
     marginBottom: Spacing.xs,
   },
   categoryName: {

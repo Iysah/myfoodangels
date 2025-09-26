@@ -1,40 +1,46 @@
 import React, { useState, useRef } from 'react';
 import { StyleSheet, View, FlatList, TouchableOpacity, Text, Dimensions, SafeAreaView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { AuthStackParamList, RootStackParamList } from '../../navigation/types';
+import { CompositeNavigationProp } from '@react-navigation/native';
+import { observer } from 'mobx-react-lite';
 import OnboardingSlide from '../../components/OnboardingSlide';
+import { useStores } from '../../contexts/StoreContext';
 
 const { width, height } = Dimensions.get('window');
-
-// Import SVG assets
-import ShoppingSvg from '../../assets/onboarding/shopping.svg';
-import DeliverySvg from '../../assets/onboarding/delivery.svg';
-import CheckoutSvg from '../../assets/onboarding/checkout.svg';
 
 const slides = [
   {
     id: '1',
-    title: 'Welcome to MyFoodAngels',
-    description: 'Discover a world of delicious food and groceries at your fingertips. Browse through thousands of products from local and international vendors.',
-    image: ShoppingSvg,
+    title: 'Farm to Table, Made Easy',
+    description: 'Get the freshest produce straight from trusted local farmers.',
+    image: require('../../assets/onboarding/onboarding-a.png'),
   },
   {
     id: '2',
-    title: 'Quick Delivery',
-    description: 'Get your orders delivered to your doorstep quickly. Track your delivery in real-time and enjoy our fast and reliable service.',
-    image: DeliverySvg,
+    title: 'Freshness You Can Trust',
+    description: 'Freshness guaranteed with every order.',
+    image: require('../../assets/onboarding/onboarding-b.png'), 
   },
   {
     id: '3',
-    title: 'Secure Checkout',
-    description: 'Pay securely using multiple payment methods. Your transactions are protected with industry-standard security measures.',
-    image: CheckoutSvg,
+    title: 'Your Farm Shop, Anytime, Anywhere',
+    description: 'Shop with just a tap and get your produce delivered straight to your doorstep.',
+    image: require('../../assets/onboarding/onboarding-c.png'),
   },
 ];
 
-const OnboardingScreen = () => {
+type OnboardingScreenNavigationProp = CompositeNavigationProp<
+  StackNavigationProp<AuthStackParamList, 'Onboarding'>,
+  StackNavigationProp<RootStackParamList>
+>;
+
+const OnboardingScreen = observer(() => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
-  const navigation = useNavigation();
+  const navigation = useNavigation<OnboardingScreenNavigationProp>();
+  const { onboardingStore, authStore } = useStores();
 
   const handleNext = () => {
     if (currentIndex < slides.length - 1) {
@@ -49,9 +55,26 @@ const OnboardingScreen = () => {
     handleGetStarted();
   };
 
-  const handleGetStarted = () => {
+  const handleGetStarted = async () => {
+    // Complete onboarding
+    await onboardingStore.completeOnboarding();
     // Navigate to Login screen
-    navigation.navigate('Auth', { screen: 'Login' });
+    navigation.navigate('Login');
+  };
+
+  const handleContinueAsGuest = async () => {
+    // Complete onboarding and enter guest mode
+    await onboardingStore.completeOnboarding();
+    authStore.enterGuestMode();
+    // Navigate to main app using parent navigation
+    navigation.getParent()?.navigate('Main');
+  };
+
+  const handleSignUp = async () => {
+    // Complete onboarding
+    await onboardingStore.completeOnboarding();
+    // Navigate to Register screen
+    navigation.navigate('Register');
   };
 
   const handleScroll = (event: any) => {
@@ -68,7 +91,7 @@ const OnboardingScreen = () => {
         key={index}
         style={[
           styles.dot,
-          { backgroundColor: index === currentIndex ? '#FF6B6B' : '#DDDDDD' },
+          { backgroundColor: index === currentIndex ? '#7AB42C' : '#E4F0D5' },
         ]}
       />
     ));
@@ -103,15 +126,27 @@ const OnboardingScreen = () => {
       <View style={styles.bottomContainer}>
         <View style={styles.dotsContainer}>{renderDots()}</View>
 
-        <TouchableOpacity style={styles.button} onPress={handleNext}>
-          <Text style={styles.buttonText}>
-            {currentIndex === slides.length - 1 ? 'Get Started' : 'Next'}
-          </Text>
-        </TouchableOpacity>
+        {currentIndex === slides.length - 1 ? (
+          <View style={styles.finalButtonsContainer}>
+            <TouchableOpacity style={styles.primaryButton} onPress={handleGetStarted}>
+              <Text style={styles.primaryButtonText}>Login</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.secondaryButton} onPress={handleSignUp}>
+              <Text style={styles.secondaryButtonText}>Sign Up</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.guestButton} onPress={handleContinueAsGuest}>
+              <Text style={styles.guestButtonText}>Continue as Guest</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <TouchableOpacity style={styles.button} onPress={handleNext}>
+            <Text style={styles.buttonText}>Next</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </SafeAreaView>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -161,6 +196,53 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  finalButtonsContainer: {
+    width: '100%',
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  primaryButton: {
+    backgroundColor: '#7AB42C',
+    paddingVertical: 15,
+    paddingHorizontal: 40,
+    borderRadius: 30,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    alignItems: 'center',
+  },
+  primaryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  secondaryButton: {
+    backgroundColor: 'transparent',
+    paddingVertical: 15,
+    paddingHorizontal: 40,
+    borderRadius: 30,
+    borderWidth: 2,
+    borderColor: '#7AB42C',
+    alignItems: 'center',
+  },
+  secondaryButtonText: {
+    color: '#7AB42C',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  guestButton: {
+    backgroundColor: 'transparent',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+  },
+  guestButtonText: {
+    color: '#666',
+    fontSize: 14,
+    fontWeight: '500',
   },
 });
 

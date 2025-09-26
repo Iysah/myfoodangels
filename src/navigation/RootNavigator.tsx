@@ -29,20 +29,21 @@ import { PaystackProvider } from "react-native-paystack-webview";
 const Stack = createStackNavigator<RootStackParamList>();
 
 const RootNavigator = observer(() => {
-  const { authStore } = useStores();
+  const { authStore, onboardingStore } = useStores();
   const [isInitializing, setIsInitializing] = useState(true);
 
   useEffect(() => {
-    // Check if user is already logged in
-    const checkAuthState = async () => {
+    // Check auth state and onboarding status
+    const checkInitialState = async () => {
       try {
         await authStore.checkAuthState();
+        await onboardingStore.loadOnboardingState();
       } finally {
         setIsInitializing(false);
       }
     };
 
-    checkAuthState();
+    checkInitialState();
   }, []);
 
   // Show loading screen while checking auth state
@@ -64,6 +65,7 @@ const RootNavigator = observer(() => {
           screenOptions={{
             headerShown: false,
           }}
+          initialRouteName={onboardingStore.hasSeenOnboarding === false ? "Auth" : "Main"}
         >
           {/* Main app is always accessible for guest browsing */}
           <Stack.Screen name="Main" component={MainNavigator} />
@@ -73,7 +75,7 @@ const RootNavigator = observer(() => {
             name="Auth" 
             component={AuthNavigator}
             options={{
-              presentation: 'modal',
+              presentation: onboardingStore.hasSeenOnboarding === false ? 'card' : 'modal',
               headerShown: false,
             }}
           />
