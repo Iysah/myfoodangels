@@ -46,8 +46,8 @@ class PaystackService {
 
   private constructor() {
     this.config = {
-      publicKey: process.env.EXPO_PUBLIC_PAYSTACK_PUBLIC_TEST_KEY || '',
-      secretKey: process.env.EXPO_PUBLIC_PAYSTACK_SECRET_TEST_KEY || '',
+      publicKey: process.env.EXPO_PUBLIC_PAYSTACK_PUBLIC_LIVE_KEY || '',
+      secretKey: process.env.EXPO_PUBLIC_PAYSTACK_SECRET_LIVE_KEY || '',
     };
 
     if (!this.config.publicKey) {

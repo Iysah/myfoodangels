@@ -10,11 +10,11 @@ import {
   Modal,
   ActivityIndicator,
 } from 'react-native';
-import { WebView } from 'react-native-webview';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Dropdown } from 'react-native-element-dropdown';
 import { observer } from 'mobx-react-lite';
 import { useNavigation } from '@react-navigation/native';
+import { usePaystack } from 'react-native-paystack-webview';
 import { Colors, GlobalStyles, Spacing, Typography } from '../../styles/globalStyles';
 import { CartItem } from '../../stores/CartStore';
 import { PaymentCard } from '../../types/Wallet';
@@ -32,6 +32,7 @@ import { LoystarAPI } from '../../services/loystar/api';
 const CheckoutScreen = observer(() => {
   const navigation = useNavigation();
   const { authStore, cartStore, orderStore, walletStore } = useStores();
+  const { popup } = usePaystack();
   
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('wallet');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -64,13 +65,6 @@ const CheckoutScreen = observer(() => {
   // Payment Modal State
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedPaymentOption, setSelectedPaymentOption] = useState<string>('');
-  
-  // Paystack WebView State
-  const [showPaymentWebView, setShowPaymentWebView] = useState(false);
-  const [paymentUrl, setPaymentUrl] = useState('');
-  const [currentOrderData, setCurrentOrderData] = useState<any>(null);
-  const [currentOrderId, setCurrentOrderId] = useState('');
-  const [currentPaymentReference, setCurrentPaymentReference] = useState('');
   
   // Delivery Dropdown State
   const [isFocus, setIsFocus] = useState(false);
@@ -431,8 +425,7 @@ const CheckoutScreen = observer(() => {
         const paymentResult = await processPaystackPayment(paymentType, orderData, tempOrderId);
         
         if (paymentResult.pending) {
-          // Payment is pending (WebView opened) - don't continue processing here
-          // The completion will be handled in the WebView callback
+          // Payment is pending - completion will be handled in the Paystack callback
           setIsProcessing(false);
           return;
         }
@@ -452,55 +445,71 @@ const CheckoutScreen = observer(() => {
     }
   };
 
-  // Helper function to process Paystack payments
+  // Helper function to process Paystack payments using react-native-paystack-webview
   const processPaystackPayment = async (paymentType: string, orderData: any, orderId: string) => {
     try {
       const paystackService = PaystackService.getInstance();
       const reference = paystackService.generateReference();
       
-      const paymentData = paystackService.preparePaymentData(
-        authStore.user?.email || billingAddress.email,
-        orderData.total * 100, // Convert naira to kobo for Paystack
-        'NGN',
-        reference,
-        {
-          orderId,
-          paymentType,
-          customerName: billingAddress.fullName,
-          phoneNumber: billingAddress.phoneNumber,
-        }
-      );
-
-      // Set payment channels based on payment type
-      if (paymentType === 'credit_card') {
-        paymentData.channels = ['card'];
-      } else if (paymentType === 'bank_transfer') {
-        paymentData.channels = ['bank_transfer'];
-      } else if (paymentType === 'ussd') {
-        paymentData.channels = ['ussd'];
-      }
-
-      // Initialize Paystack transaction
-      const initResponse = await paystackService.initializeTransaction(paymentData);
-      
-      if (!initResponse.status) {
-        throw new Error(initResponse.message || 'Failed to initialize payment');
-      }
-
-      // Store order data for completion after payment
-      setCurrentOrderData(orderData);
-      setCurrentOrderId(orderId);
-      setCurrentPaymentReference(reference);
-      
-      // Open WebView with Paystack payment URL
-      setPaymentUrl(initResponse.data.authorization_url);
-      setShowPaymentWebView(true);
-
-      // Return pending status - actual completion happens in WebView callback
-      return {
-        success: false, // Will be updated after WebView completion
+      // Use the popup.checkout method from react-native-paystack-webview
+      // Channels are configured in PaystackProvider in RootNavigator
+      popup.checkout({
+        email: authStore.user?.email || billingAddress.email,
+        amount: orderData.total, // Amount in Naira (not kobo for this package)
         reference: reference,
-        transactionId: initResponse.data.reference,
+        metadata: {
+          custom_fields: [
+            {
+              display_name: 'Order ID',
+              variable_name: 'order_id',
+              value: orderId
+            },
+            {
+              display_name: 'Payment Type',
+              variable_name: 'payment_type',
+              value: paymentType
+            },
+            {
+              display_name: 'Customer Name',
+              variable_name: 'customer_name',
+              value: billingAddress.fullName
+            },
+            {
+              display_name: 'Phone Number',
+              variable_name: 'phone_number',
+              value: billingAddress.phoneNumber
+            }
+          ]
+        },
+        onSuccess: async (response: any) => {
+          console.log('Payment successful:', response);
+          try {
+            // Verify payment and create order
+            await createOrder(response.reference || reference);
+          } catch (error: any) {
+            console.error('Error creating order after payment:', error);
+            Alert.alert('Error', 'Payment was successful but order creation failed. Please contact support.');
+          }
+        },
+        onCancel: () => {
+          console.log('Payment cancelled by user');
+          setIsProcessing(false);
+          Alert.alert('Payment Cancelled', 'You cancelled the payment process.');
+        },
+        onError: (error: any) => {
+          console.error('Payment error:', error);
+          setIsProcessing(false);
+          Alert.alert('Payment Error', error.message || 'An error occurred during payment. Please try again.');
+        },
+        onLoad: (response: any) => {
+          console.log('Payment WebView loaded:', response);
+        }
+      });
+
+      // Return pending status - actual completion happens in callbacks
+      return {
+        success: false, // Will be updated in onSuccess callback
+        reference: reference,
         pending: true,
       };
     } catch (error: any) {
@@ -514,38 +523,22 @@ const CheckoutScreen = observer(() => {
   };
 
   // Handle WebView navigation for payment completion
-  const handleWebViewNavigationStateChange = async (navState: any) => {
-    const { url } = navState;
-    
-    // Check if payment was successful (Paystack redirects to success URL)
-    if (url.includes('success') || url.includes('callback')) {
-      try {
-        // Verify payment with Paystack
-        const paystackService = PaystackService.getInstance();
-        const verificationResponse = await paystackService.verifyTransaction(currentPaymentReference);
-        
-        if (verificationResponse.status && verificationResponse.data.status === 'success') {
-          // Payment successful - create the order
-          await createOrder(currentPaymentReference);
-        } else {
-          // Payment failed
-          handlePaymentFailure('Payment verification failed');
-        }
-      } catch (error: any) {
-        console.error('Payment verification error:', error);
-        handlePaymentFailure(error.message);
-      }
-    } else if (url.includes('cancel') || url.includes('failed')) {
-      // Payment was cancelled or failed
-      handlePaymentFailure('Payment was cancelled or failed');
-    }
-  };
+
 
   // Create order after successful payment
   const createOrder = async (reference: string) => {
     try {
-      setShowPaymentWebView(false);
-      setIsProcessing(true);
+      console.log('=== Create Order Debug ===');
+      console.log('Creating order with reference:', reference);
+
+      // Calculate totals
+      const subtotal = cartStore.items.reduce((sum, item) => {
+        const price = item.product.salePrice || item.product.price;
+        return sum + (price * item.quantity);
+      }, 0);
+      const deliveryFee = selectedDeliveryLocation?.price || 0;
+      const discount = appliedCoupon?.discountAmount || 0;
+      const total = subtotal + deliveryFee - discount;
 
       // Create order data matching web app format
       const singleOrder = {
@@ -553,7 +546,7 @@ const CheckoutScreen = observer(() => {
         firstName: authStore.user?.displayName?.split(' ')[0] || authStore.user?.email?.split('@')[0] || 'User',
         lastName: authStore.user?.displayName?.split(' ')[1] || '',
         email: authStore.user?.email || '',
-        totalAmount: currentOrderData.total,
+        totalAmount: total,
         address: `${billingAddress.deliveryAddress || ''}, ${billingAddress.state || ''}, ${billingAddress.country || ''}`,
         phone: authStore.user?.phoneNumber || billingAddress.phoneNumber || '',
         paymentReference: reference,
@@ -567,26 +560,41 @@ const CheckoutScreen = observer(() => {
       // Save order to Firebase using addDocument
       await addDocument('orders', singleOrder);
     
-      
       // Send order to Loystar
-      await sendOrderToLoystar(currentOrderData, currentOrderId);
+      const orderData = {
+        items: cartStore.items,
+        total: total,
+        deliveryFee: deliveryFee,
+        discount: discount,
+        subtotal: subtotal
+      };
+      await sendOrderToLoystar(orderData, reference);
       
       // Clear cart and navigate to confirmation
       cartStore.clearCart();
       setIsProcessing(false);
       
+      console.log('✅ CreateOrder completed successfully - cart cleared, processing set to false');
+      
       Alert.alert(
         'Payment Successful!',
-        'Your order has been placed successfully.',
+        'Your order has been placed successfully. You can track your order in the Orders tab.',
         [
           {
-            text: 'OK',
-            onPress: () => navigation.navigate('OrderConfirmation', { orderId: reference }),
+            text: 'Track Order',
+            onPress: () => navigation.navigate('Main', { screen: 'TrackOrders' }),
+          },
+          {
+            text: 'Continue Shopping',
+            onPress: () => navigation.navigate('Main', { screen: 'Home' }),
+            style: 'cancel',
           },
         ]
       );
+      
+      console.log('✅ Success alert shown to user');
     } catch (error: any) {
-      console.error('Order creation error:', error);
+      console.error('❌ Order creation error:', error);
       setIsProcessing(false);
       Alert.alert('Error', 'Payment was successful but there was an issue creating your order. Please contact support.');
     }
@@ -594,7 +602,6 @@ const CheckoutScreen = observer(() => {
 
   // Handle payment failure
   const handlePaymentFailure = (errorMessage: string) => {
-    setShowPaymentWebView(false);
     setIsProcessing(false);
     Alert.alert(
       'Payment Failed',
@@ -716,16 +723,24 @@ const CheckoutScreen = observer(() => {
   // Helper function to send order to Loystar
   const sendOrderToLoystar = async (orderData: any, orderId: string) => {
     try {
+      // Determine payment method based on selectedPaymentMethod
+      let paymentMethodType = 'card'; // default
+      if (selectedPaymentMethod === 'wallet') {
+        paymentMethodType = 'cash';
+      } else if (selectedPaymentMethod.startsWith('card_')) {
+        paymentMethodType = 'card';
+      } else {
+        paymentMethodType = 'card'; // fallback for any other payment method
+      }
+
       // Transform order data to Loystar API v2 format
       const loystarData = {
         product_id: orderData.items.map((item: any) => parseInt(item.productId || item.product?.id)),
         quantity: orderData.items.map((item: any) => item.quantity),
         user_id: authStore.loystarData?.customer?.id || authStore.loystarData?.user?.id || 0,
         amount: orderData.total,
-        merchant_id: parseInt(process.env.EXPO_PUBLIC_MERCHANT_ID || '543'),
-        payment_method: orderData.paymentMethod.type === 'wallet' ? 'cash' : 
-                       orderData.paymentMethod.type === 'credit_card' ? 'card' : 
-                       orderData.paymentMethod.type === 'bank_transfer' ? 'transfer' : 'card',
+        merchant_id: parseInt(process.env.EXPO_PUBLIC_MERCHANT_ID || '22244'),
+        payment_method: paymentMethodType,
         order_reference: orderId,
         customer_email: authStore.user?.email || '',
         customer_phone: authStore.user?.phoneNumber || '',
@@ -734,9 +749,9 @@ const CheckoutScreen = observer(() => {
           product_id: parseInt(item.productId || item.product?.id),
           product_name: item.productName || item.product?.name,
           quantity: item.quantity,
-          unit_price: item.price,
-          total_price: item.totalPrice,
-          points_earned: Math.floor(item.totalPrice), // 1:1 points ratio
+          unit_price: item.price || item.product?.price || item.product?.salePrice || 0,
+          total_price: item.totalPrice || (item.quantity * (item.price || item.product?.price || item.product?.salePrice || 0)),
+          points_earned: Math.floor(item.totalPrice || (item.quantity * (item.price || item.product?.price || item.product?.salePrice || 0))), // 1:1 points ratio
         })),
       };
 
@@ -1096,50 +1111,7 @@ const CheckoutScreen = observer(() => {
 
         {renderPaymentModal()}
 
-        {/* Paystack Payment WebView Modal */}
-        <Modal
-          visible={showPaymentWebView}
-          animationType="slide"
-          presentationStyle="pageSheet"
-        >
-          <SafeAreaView style={styles.webViewContainer}>
-            <View style={styles.webViewHeader}>
-              <TouchableOpacity
-                style={styles.webViewCloseButton}
-                onPress={() => handlePaymentFailure('Payment cancelled by user')}
-              >
-                <Text style={styles.webViewCloseText}>Cancel</Text>
-              </TouchableOpacity>
-              <Text style={styles.webViewTitle}>Complete Payment</Text>
-              <View style={styles.webViewPlaceholder} />
-            </View>
-            
-            {paymentUrl ? (
-              <WebView
-                source={{ uri: paymentUrl }}
-                style={styles.webView}
-                onNavigationStateChange={handleWebViewNavigationStateChange}
-                startInLoadingState={true}
-                renderLoading={() => (
-                  <View style={styles.webViewLoading}>
-                    <ActivityIndicator size="large" color={Colors.primary} />
-                    <Text style={styles.webViewLoadingText}>Loading payment...</Text>
-                  </View>
-                )}
-                onError={(syntheticEvent) => {
-                  const { nativeEvent } = syntheticEvent;
-                  console.error('WebView error: ', nativeEvent);
-                  handlePaymentFailure('Failed to load payment page');
-                }}
-              />
-            ) : (
-              <View style={styles.webViewLoading}>
-                <ActivityIndicator size="large" color={Colors.primary} />
-                <Text style={styles.webViewLoadingText}>Preparing payment...</Text>
-              </View>
-            )}
-          </SafeAreaView>
-        </Modal>
+
 
         <View style={styles.footer}>
           <TouchableOpacity
@@ -1546,52 +1518,7 @@ const styles = StyleSheet.create({
     fontFamily: Typography.fontFamily.regular,
     color: Colors.label,
   },
-  // WebView Modal Styles
-  webViewContainer: {
-    flex: 1,
-    backgroundColor: Colors.white,
-  },
-  webViewHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    backgroundColor: Colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  webViewCloseButton: {
-    padding: Spacing.xs,
-  },
-  webViewCloseText: {
-    fontSize: Typography.fontSize.base,
-    fontFamily: Typography.fontFamily.medium,
-    color: Colors.primary,
-  },
-  webViewTitle: {
-    fontSize: Typography.fontSize.lg,
-    fontFamily: Typography.fontFamily.semiBold,
-    color: Colors.label,
-  },
-  webViewPlaceholder: {
-    width: 60, // Same width as close button for centering
-  },
-  webView: {
-    flex: 1,
-  },
-  webViewLoading: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: Colors.white,
-  },
-  webViewLoadingText: {
-    marginTop: Spacing.sm,
-    fontSize: Typography.fontSize.base,
-    fontFamily: Typography.fontFamily.regular,
-    color: Colors.textSecondary,
-  },
+
 });
 
 export default CheckoutScreen;

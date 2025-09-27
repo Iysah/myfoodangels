@@ -25,6 +25,7 @@ import TopUpScreen from '../screens/Wallet/TopUpScreen';
 import AddCardScreen from '../screens/Wallet/AddCardScreen';
 import CouponsScreen from '../screens/Profile/CouponsScreen';
 import { PaystackProvider } from "react-native-paystack-webview";
+import OrderConfirmationScreen from '../screens/Checkout/OrderConfirmationScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
 
@@ -51,7 +52,7 @@ const RootNavigator = observer(() => {
     return null; // Or a loading spinner
   }
 
-  const paymentKey = process.env.EXPO_PUBLIC_PAYSTACK_PUBLIC_TEST_KEY;
+  const paymentKey = process.env.EXPO_PUBLIC_PAYSTACK_PUBLIC_LIVE_KEY;
 
   return (
     <NavigationContainer>
@@ -95,8 +96,8 @@ const RootNavigator = observer(() => {
           <Stack.Screen name="Coupons" component={CouponsScreen} />
           <Stack.Screen name="AddCard" component={AddCardScreen} />
           <Stack.Screen name="TopUp" component={TopUpScreen} />
-          {/* 
           <Stack.Screen name="OrderConfirmation" component={OrderConfirmationScreen} />
+          {/* 
           <Stack.Screen name="About" component={AboutScreen} />
           <Stack.Screen name="OrderDetails" component={OrderDetailsScreen} />
           <Stack.Screen name="Settings" component={SettingsScreen} />
