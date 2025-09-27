@@ -24,13 +24,13 @@ const OnboardingSlide: React.FC<OnboardingSlideProps> = ({ title, description, i
 const styles = StyleSheet.create({
   container: {
     width,
-    height: height * 0.75,
+    height: height * 0.70,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
   image: {
-    width: width * 0.8,
+    width: width * 0.9,
     height: height * 0.4,
     marginBottom: 30,
   },

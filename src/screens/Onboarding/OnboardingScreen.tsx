@@ -7,6 +7,7 @@ import { CompositeNavigationProp } from '@react-navigation/native';
 import { observer } from 'mobx-react-lite';
 import OnboardingSlide from '../../components/OnboardingSlide';
 import { useStores } from '../../contexts/StoreContext';
+import { Colors } from '../../styles/globalStyles';
 
 const { width, height } = Dimensions.get('window');
 
@@ -44,8 +45,23 @@ const OnboardingScreen = observer(() => {
 
   const handleNext = () => {
     if (currentIndex < slides.length - 1) {
-      flatListRef.current?.scrollToIndex({ index: currentIndex + 1 });
-      setCurrentIndex(currentIndex + 1);
+      const nextIndex = currentIndex + 1;
+      try {
+        flatListRef.current?.scrollToIndex({ 
+          index: nextIndex, 
+          animated: true 
+        });
+      } catch (error) {
+        // Fallback to scrollToOffset if scrollToIndex fails
+        flatListRef.current?.scrollToOffset({
+          offset: nextIndex * width,
+          animated: true
+        });
+      }
+      // Update state after a small delay to ensure scroll completes
+      setTimeout(() => {
+        setCurrentIndex(nextIndex);
+      }, 100);
     } else {
       handleGetStarted();
     }
@@ -85,14 +101,34 @@ const OnboardingScreen = observer(() => {
     }
   };
 
+  const handleDotPress = (index: number) => {
+    try {
+      flatListRef.current?.scrollToIndex({ 
+        index, 
+        animated: true 
+      });
+    } catch (error) {
+      // Fallback to scrollToOffset if scrollToIndex fails
+      flatListRef.current?.scrollToOffset({
+        offset: index * width,
+        animated: true
+      });
+    }
+    // Update state after a small delay to ensure scroll completes
+    setTimeout(() => {
+      setCurrentIndex(index);
+    }, 100);
+  };
+
   const renderDots = () => {
     return slides.map((_, index) => (
-      <View
+      <TouchableOpacity
         key={index}
         style={[
           styles.dot,
           { backgroundColor: index === currentIndex ? '#7AB42C' : '#E4F0D5' },
         ]}
+        onPress={() => handleDotPress(index)}
       />
     ));
   };
@@ -131,8 +167,9 @@ const OnboardingScreen = observer(() => {
             <TouchableOpacity style={styles.primaryButton} onPress={handleGetStarted}>
               <Text style={styles.primaryButtonText}>Login</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.secondaryButton} onPress={handleSignUp}>
-              <Text style={styles.secondaryButtonText}>Sign Up</Text>
+            <TouchableOpacity style={[styles.guestButton, { justifyContent: 'center', flexDirection: 'row', gap: 4 }]} onPress={handleSignUp}>
+              <Text>Don't have an account?</Text>
+              <Text style={styles.guestButtonText}>Sign Up</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.guestButton} onPress={handleContinueAsGuest}>
               <Text style={styles.guestButtonText}>Continue as Guest</Text>
@@ -140,7 +177,7 @@ const OnboardingScreen = observer(() => {
           </View>
         ) : (
           <TouchableOpacity style={styles.button} onPress={handleNext}>
-            <Text style={styles.buttonText}>Next</Text>
+            <Text style={styles.buttonText}>Continue</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -182,7 +219,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 5,
   },
   button: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: Colors.primary,
     paddingVertical: 15,
     paddingHorizontal: 40,
     borderRadius: 30,
@@ -206,12 +243,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#7AB42C',
     paddingVertical: 15,
     paddingHorizontal: 40,
-    borderRadius: 30,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
+    borderRadius: 12,
+    // elevation: 3,
+    // shadowColor: '#000',
+    // shadowOffset: { width: 0, height: 2 },
+    // shadowOpacity: 0.2,
+    // shadowRadius: 3,
     alignItems: 'center',
   },
   primaryButtonText: {
@@ -240,9 +277,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   guestButtonText: {
-    color: '#666',
+    color: Colors.primary,
     fontSize: 14,
     fontWeight: '500',
+    textDecorationLine: 'underline',
+    textDecorationColor: Colors.primary
   },
 });
 
