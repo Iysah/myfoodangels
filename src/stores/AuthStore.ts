@@ -184,6 +184,7 @@ class AuthStore {
         runInAction(() => {
           this.loystarData = loystarResponse;
           this.loystarToken = loystarResponse.token;
+          this.isFirebaseAuthenticated = true; // Set Firebase auth success
           this.isLoystarAuthenticated = true; // Set Loystar auth success
           this.isLoading = false;
         });
@@ -522,7 +523,7 @@ class AuthStore {
 
   // Prompt authentication for restricted features
   requiresAuthentication = () => {
-    return !this.isAuthenticated;
+    return !this.isFirebaseAuthenticated;
   };
 }
 

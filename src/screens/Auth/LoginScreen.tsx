@@ -51,6 +51,8 @@ const LoginScreen = observer(() => {
         setTimeout(() => {
           navigation.goBack();
         }, 100);
+      } else {
+        navigation.navigate('Main', { screen: 'Home'})
       }
       // Otherwise, navigation will be handled by the root navigator based on auth state
     } catch (error: any) {

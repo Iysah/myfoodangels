@@ -135,11 +135,13 @@ const OnboardingScreen = observer(() => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.skipContainer}>
-        <TouchableOpacity onPress={handleSkip}>
-          <Text style={styles.skipText}>Skip</Text>
-        </TouchableOpacity>
-      </View>
+      {currentIndex !== slides.length - 1 && (
+        <View style={styles.skipContainer}>
+          <TouchableOpacity onPress={handleSkip}>
+            <Text style={styles.skipText}>Skip</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       <FlatList
         ref={flatListRef}
