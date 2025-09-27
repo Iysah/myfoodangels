@@ -186,6 +186,7 @@ class AuthStore {
           this.loystarToken = loystarResponse.token;
           this.isFirebaseAuthenticated = true; // Set Firebase auth success
           this.isLoystarAuthenticated = true; // Set Loystar auth success
+          this.isGuest = false;
           this.isLoading = false;
         });
         

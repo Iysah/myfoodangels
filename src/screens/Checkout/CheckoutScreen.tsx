@@ -168,16 +168,17 @@ const CheckoutScreen = observer(() => {
           coupon: {
             id: '',
             code: couponCode.trim().toUpperCase(),
-            title: 'Discount Applied',
-            description: '',
+            name: 'Discount Applied',
+            applicableCategories: [],
+            applicableProducts: [],
             discountType: 'fixed_amount',
-            discountValue: result.discountAmount,
-            usedCount: 0,
+            discountAmount: result.discountAmount.toString(),
+            minSpend: 0,
+            oneTimeUse: false,
+            purpose: 'General discount',
+            slug: couponCode.trim().toLowerCase(),
             isActive: true,
-            validFrom: new Date(),
-            validUntil: new Date(),
-            createdAt: new Date(),
-            updatedAt: new Date(),
+            expirationDate: new Date(),
           },
           discountAmount: result.discountAmount,
         });
@@ -201,16 +202,14 @@ const CheckoutScreen = observer(() => {
   // Calculate order totals
   const calculateOrderTotal = () => {
     const subtotal = cartStore.total;
-    const tax = subtotal * 0.1;
     const deliveryFee = selectedDeliveryLocation?.price || 0;
     const discount = appliedCoupon?.discountAmount || 0;
     
     return {
       subtotal,
-      tax,
       deliveryFee,
       discount,
-      total: subtotal + tax + deliveryFee - discount,
+      total: subtotal + deliveryFee - discount,
     };
   };
 
@@ -253,7 +252,7 @@ const CheckoutScreen = observer(() => {
   const processPayment = async (paymentType: string) => {
     setIsProcessing(true);
 
-    // Validate required data before creating order
+    // Validate required data before processing payment
     const validateOrderData = () => {
       const errors = [];
       
@@ -291,11 +290,10 @@ const CheckoutScreen = observer(() => {
         throw new Error(`Validation failed: ${validationErrors.join(', ')}`);
       }
 
-
       // Calculate final order totals
       const orderTotals = calculateOrderTotal();
 
-      // Validate wallet payment
+      // Handle wallet payment (create order first for wallet)
       if (paymentType === 'wallet') {
         if (!walletStore.wallet || walletStore.wallet.balance < orderTotals.total) {
           Alert.alert(
@@ -315,77 +313,122 @@ const CheckoutScreen = observer(() => {
           setIsProcessing(false);
           return;
         }
-      }
 
-      // Create order data
-      const orderData = {
-        userId: authStore.user?.id || '',
-        items: cartStore.items.map((item: CartItem) => ({
-          productId: item.product.id,
-          productName: item.product.name,
-          productImage: item.product.images[0] || '',
-          quantity: item.quantity,
-          price: item.product.salePrice || item.product.price,
-          totalPrice: (item.product.salePrice || item.product.price) * item.quantity,
-          options: item.selectedOptions,
-        })),
-        subtotal: orderTotals.subtotal,
-        tax: orderTotals.tax,
-        shippingCost: orderTotals.deliveryFee,
-        discount: orderTotals.discount,
-        total: orderTotals.total,
-        paymentMethod: {
-          type: paymentType as 'wallet' | 'credit_card' | 'bank_transfer' | 'ussd',
-          walletId: paymentType === 'wallet' ? walletStore.wallet?.id : undefined,
-        },
-        shippingAddress: {
-          name: billingAddress.fullName,
-          line1: billingAddress.deliveryAddress,
-          line2: '',
-          city: billingAddress.city || selectedDeliveryLocation?.location || '',
-          state: billingAddress.state || 'Lagos',
-          postalCode: billingAddress.postalCode || '',
-          country: billingAddress.country || 'Nigeria',
-          phoneNumber: billingAddress.phoneNumber,
-        },
-        billingAddress: {
-          name: billingAddress.fullName,
-          line1: billingAddress.deliveryAddress,
-          line2: '',
-          city: billingAddress.city || selectedDeliveryLocation?.location || '',
-          state: billingAddress.state || 'Lagos',
-          postalCode: billingAddress.postalCode || '',
-          country: billingAddress.country || 'Nigeria',
-          phoneNumber: billingAddress.phoneNumber,
-        },
-        status: 'pending' as const,
-      };
+        // For wallet payments, create order first then process payment
+        const orderData = {
+          userId: authStore.user?.id || '',
+          items: cartStore.items.map((item: CartItem) => ({
+            productId: item.product.id,
+            productName: item.product.name,
+            productImage: item.product.images[0] || '',
+            quantity: item.quantity,
+            price: item.product.salePrice || item.product.price,
+            totalPrice: (item.product.salePrice || item.product.price) * item.quantity,
+            options: item.selectedOptions,
+          })),
+          subtotal: orderTotals.subtotal,
+          tax: 0,
+          shippingCost: orderTotals.deliveryFee,
+          discount: orderTotals.discount,
+          total: orderTotals.total,
+          paymentMethod: {
+            type: paymentType as 'wallet' | 'credit_card' | 'bank_transfer' | 'ussd',
+            walletId: walletStore.wallet?.id,
+          },
+          shippingAddress: {
+            name: billingAddress.fullName,
+            line1: billingAddress.deliveryAddress,
+            line2: '',
+            city: billingAddress.city || selectedDeliveryLocation?.location || '',
+            state: billingAddress.state || 'Lagos',
+            postalCode: billingAddress.postalCode || '',
+            country: billingAddress.country || 'Nigeria',
+            phoneNumber: billingAddress.phoneNumber,
+          },
+          billingAddress: {
+            name: billingAddress.fullName,
+            line1: billingAddress.deliveryAddress,
+            line2: '',
+            city: billingAddress.city || selectedDeliveryLocation?.location || '',
+            state: billingAddress.state || 'Lagos',
+            postalCode: billingAddress.postalCode || '',
+            country: billingAddress.country || 'Nigeria',
+            phoneNumber: billingAddress.phoneNumber,
+          },
+          status: 'pending' as const,
+        };
 
-      // Create order first
-      const orderId = await orderStore.createOrder(orderData);
-      
-      // Ensure orderId is valid
-      if (!orderId) {
-        throw new Error('Failed to create order');
-      }
+        const orderId = await orderStore.createOrder(orderData);
+        
+        if (!orderId) {
+          throw new Error('Failed to create order');
+        }
 
-      // Process payment based on type
-      let paymentSuccess = false;
-      let paymentReference = '';
-
-      if (paymentType === 'wallet' && walletStore.wallet) {
         // Process wallet payment
+        if (!walletStore.wallet?.id) {
+          throw new Error('Wallet not found');
+        }
+        
         await walletStore.processWalletPayment(
           walletStore.wallet.id,
           orderData.total,
-          orderId!,
+          orderId,
           `Order payment for ${cartStore.itemCount} items`
         );
-        paymentSuccess = true;
-        paymentReference = `wallet_${orderId}`;
+
+        const paymentReference = `wallet_${orderId}`;
+
+        // Create order in Firebase and Loystar after successful payment
+        await createOrder(paymentReference);
+        
       } else {
-        // Process Paystack payment (card, bank transfer, USSD)
-        const paymentResult = await processPaystackPayment(paymentType, orderData, orderId);
+        // For Paystack payments, process payment first before creating order
+        // Store order data for later use after successful payment
+        const orderData = {
+          userId: authStore.user?.id || '',
+          items: cartStore.items.map((item: CartItem) => ({
+            productId: item.product.id,
+            productName: item.product.name,
+            productImage: item.product.images[0] || '',
+            quantity: item.quantity,
+            price: item.product.salePrice || item.product.price,
+            totalPrice: (item.product.salePrice || item.product.price) * item.quantity,
+            options: item.selectedOptions,
+          })),
+          subtotal: orderTotals.subtotal,
+          tax: 0,
+          shippingCost: orderTotals.deliveryFee,
+          discount: orderTotals.discount,
+          total: orderTotals.total,
+          paymentMethod: {
+            type: paymentType as 'wallet' | 'credit_card' | 'bank_transfer' | 'ussd',
+          },
+          shippingAddress: {
+            name: billingAddress.fullName,
+            line1: billingAddress.deliveryAddress,
+            line2: '',
+            city: billingAddress.city || selectedDeliveryLocation?.location || '',
+            state: billingAddress.state || 'Lagos',
+            postalCode: billingAddress.postalCode || '',
+            country: billingAddress.country || 'Nigeria',
+            phoneNumber: billingAddress.phoneNumber,
+          },
+          billingAddress: {
+            name: billingAddress.fullName,
+            line1: billingAddress.deliveryAddress,
+            line2: '',
+            city: billingAddress.city || selectedDeliveryLocation?.location || '',
+            state: billingAddress.state || 'Lagos',
+            postalCode: billingAddress.postalCode || '',
+            country: billingAddress.country || 'Nigeria',
+            phoneNumber: billingAddress.phoneNumber,
+          },
+          status: 'pending' as const,
+        };
+
+        // Process Paystack payment first
+        const tempOrderId = `temp_${Date.now()}`; // Temporary ID for payment processing
+        const paymentResult = await processPaystackPayment(paymentType, orderData, tempOrderId);
         
         if (paymentResult.pending) {
           // Payment is pending (WebView opened) - don't continue processing here
@@ -394,28 +437,12 @@ const CheckoutScreen = observer(() => {
           return;
         }
         
-        paymentSuccess = paymentResult.success;
-        paymentReference = paymentResult.reference;
-        
-        if (!paymentSuccess) {
+        if (!paymentResult.success) {
           throw new Error(paymentResult.error || 'Payment failed');
         }
-      }
 
-      if (paymentSuccess) {
-        // Save order to Firebase
-        await saveOrderToFirebase(orderData, orderId, paymentReference);
-        
-        // Send to Loystar for loyalty points
-        await sendOrderToLoystar(orderData, orderId);
-
-        // Clear cart
-        cartStore.clearCart();
-
-        // Navigate to order confirmation
-        navigation.navigate('OrderConfirmation', { orderId });
-      } else {
-        throw new Error('Payment failed');
+        // Payment successful - create order in Firebase and Loystar
+        await createOrder(paymentResult.reference);
       }
 
     } catch (error: any) {
@@ -433,7 +460,7 @@ const CheckoutScreen = observer(() => {
       
       const paymentData = paystackService.preparePaymentData(
         authStore.user?.email || billingAddress.email,
-        orderData.total,
+        orderData.total * 100, // Convert naira to kobo for Paystack
         'NGN',
         reference,
         {
@@ -1011,10 +1038,7 @@ const CheckoutScreen = observer(() => {
           <Text style={styles.summaryValue}>₦{orderTotals.subtotal.toFixed(2)}</Text>
         </View>
         
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Tax (10%)</Text>
-          <Text style={styles.summaryValue}>₦{orderTotals.tax.toFixed(2)}</Text>
-        </View>
+
         
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>
