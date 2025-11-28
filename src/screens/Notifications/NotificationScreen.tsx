@@ -1,79 +1,50 @@
-import React, { useEffect, useState } from 'react'
-import { StyleSheet, View, Text, FlatList, ActivityIndicator } from 'react-native'
+import React, { useEffect } from 'react'
+import { StyleSheet, View, Text, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { observer } from 'mobx-react-lite'
 import { useStores } from '../../contexts/StoreContext'
 import { Colors, Spacing, Typography } from '../../styles/globalStyles'
-import { listenToDocument } from '../../services/firebase/firestore'
+import { NotificationModel } from '../../stores/NotificationStore'
 import { Timestamp } from 'firebase/firestore'
 
-interface NotificationItem {
-  message: string
-  type: string
-  date: Date
-  read: boolean
-  firstName?: string
-  lastName?: string
-  status?: string
-  email?: string
-}
-
-interface NotificationsDoc {
-  userId: string
-  notifications?: Array<{
-    message: string
-    type: string
-    date: Timestamp | Date | string
-    read: boolean
-    firstName?: string
-    lastName?: string
-    status?: string
-    email?: string
-  }>
-}
-
-const NotificationScreen = () => {
-  const { authStore } = useStores()
-  const [notifications, setNotifications] = useState<NotificationItem[]>([])
-  const [loading, setLoading] = useState<boolean>(true)
-
+const NotificationScreen = observer(() => {
+  const { authStore, notificationStore } = useStores()
+  
   useEffect(() => {
-    const userId = authStore.user?.id
-    if (!userId) {
-      setLoading(false)
-      setNotifications([])
-      return
+    if (authStore.user?.id) {
+      notificationStore.setupRealtimeListener(authStore.user.id)
     }
-
-    const unsubscribe = listenToDocument<NotificationsDoc>('notifications', userId, (doc) => {
-      const items = (doc?.notifications || []).map((n) => {
-        const rawDate = n.date as any
-        const asDate = rawDate?.toDate ? rawDate.toDate() : new Date(rawDate)
-        return {
-          message: n.message,
-          type: n.type,
-          date: asDate,
-          read: n.read,
-          firstName: n.firstName,
-          lastName: n.lastName,
-          status: n.status,
-          email: n.email,
-        } as NotificationItem
-      })
-      // Most recent first
-      items.sort((a, b) => b.date.getTime() - a.date.getTime())
-      setNotifications(items)
-      setLoading(false)
-    })
-
-    return () => unsubscribe()
   }, [authStore.user?.id])
 
-  const renderItem = ({ item }: { item: NotificationItem }) => {
-    const formattedDate = item.date.toLocaleString()
+  const handleMarkAllRead = () => {
+    notificationStore.markAllAsRead()
+  }
+
+  const handleNotificationPress = (item: NotificationModel) => {
+    if (!item.read) {
+      notificationStore.markAsRead(item)
+    }
+  }
+
+  const formatDate = (date: Date | Timestamp | string) => {
+    if (date instanceof Timestamp) return date.toDate().toLocaleString()
+    if (date instanceof Date) return date.toLocaleString()
+    return new Date(date).toLocaleString()
+  }
+
+  const renderItem = ({ item }: { item: NotificationModel }) => {
+    const formattedDate = formatDate(item.date)
+    
     return (
-      <View style={styles.itemContainer}>
+      <TouchableOpacity 
+        style={[styles.itemContainer, !item.read && styles.itemUnread]} 
+        onPress={() => handleNotificationPress(item)}
+        activeOpacity={0.7}
+      >
         <View style={styles.itemHeader}>
-          <Text style={styles.itemTitle}>{item.message}</Text>
+          <Text style={[styles.itemTitle, !item.read && styles.itemTitleUnread]}>
+            {item.message}
+          </Text>
           <View style={[styles.statusBadge, item.status === 'success' ? styles.statusSuccess : styles.statusDefault]}>
             <Text style={styles.statusText}>{item.status || 'info'}</Text>
           </View>
@@ -85,25 +56,34 @@ const NotificationScreen = () => {
           <Text style={styles.itemMetaSmall}>{item.type}</Text>
           {item.email ? <Text style={styles.itemMetaSmall}>{item.email}</Text> : null}
         </View>
-      </View>
+        {!item.read && <View style={styles.unreadDot} />}
+      </TouchableOpacity>
     )
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.headerTitle}>Notifications</Text>
-      {loading ? (
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Notifications</Text>
+        {notificationStore.unreadCount > 0 && (
+          <TouchableOpacity onPress={handleMarkAllRead} style={styles.markReadButton}>
+            <Text style={styles.markReadText}>Mark all as read</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {notificationStore.isLoading && notificationStore.notifications.length === 0 ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator color={Colors.primary} />
         </View>
-      ) : notifications.length === 0 ? (
+      ) : notificationStore.notifications.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyTitle}>No notifications yet</Text>
           <Text style={styles.emptySubtitle}>When there’s activity on your account, you’ll see it here.</Text>
         </View>
       ) : (
         <FlatList
-          data={notifications}
+          data={notificationStore.notifications}
           keyExtractor={(_, index) => `notification-${index}`}
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
@@ -111,7 +91,7 @@ const NotificationScreen = () => {
       )}
     </SafeAreaView>
   )
-}
+})
 
 export default NotificationScreen
 
@@ -122,12 +102,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingTop: Spacing.md,
   },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
   headerTitle: {
     fontSize: Typography.fontSize.lg,
     fontFamily: Typography.fontFamily.bold,
     fontWeight: '600',
     color: Colors.label,
-    marginBottom: Spacing.md,
+  },
+  markReadButton: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  markReadText: {
+    fontSize: Typography.fontSize.sm,
+    color: Colors.primary,
+    fontFamily: Typography.fontFamily.medium,
   },
   loadingContainer: {
     flex: 1,
@@ -144,6 +138,13 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
     borderWidth: 1,
     borderColor: Colors.border,
+    position: 'relative',
+  },
+  itemUnread: {
+    backgroundColor: Colors.white,
+    borderColor: Colors.primary + '40', // Slight highlight for unread
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.primary,
   },
   itemHeader: {
     flexDirection: 'row',
@@ -157,6 +158,10 @@ const styles = StyleSheet.create({
     fontFamily: Typography.fontFamily.medium,
     color: Colors.label,
     marginRight: Spacing.sm,
+  },
+  itemTitleUnread: {
+    fontFamily: Typography.fontFamily.bold,
+    color: Colors.label,
   },
   itemMeta: {
     fontSize: Typography.fontSize.xs,
@@ -208,5 +213,15 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.xs,
     fontFamily: Typography.fontFamily.medium,
     color: Colors.label,
+  },
+  unreadDot: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.primary,
+    display: 'none', // We use borderLeft for unread indication now, but keeping this just in case
   },
 })

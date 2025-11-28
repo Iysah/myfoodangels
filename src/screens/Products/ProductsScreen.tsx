@@ -57,9 +57,6 @@ const ProductsScreen: React.FC<ProductsScreenProps> = observer(() => {
         fetched = await productStore.fetchProductsByLoystarCategory(category.loystarId);
         console.log('Fetched products by loystar category:', fetched);
         console.log('loystar category:', category.loystarId);
-      } else {
-        fetched = await productStore.fetchProducts({ category: category.name });
-        console.log('Fetched products:', fetched);
       }
       setProducts(fetched);
     } catch (err: any) {

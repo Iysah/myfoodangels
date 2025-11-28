@@ -65,7 +65,7 @@ const WishlistScreen: React.FC<WishlistScreenProps> = observer(() => {
   const renderWishlistItem = ({ item }: { item: Product }) => (
     <View style={styles.productCard}>
       <Image 
-        source={{ uri: item.images?.[0] || 'https://via.placeholder.com/150' }} 
+        source={{ uri: item.image || item.images?.[0] || 'https://via.placeholder.com/150' }} 
         style={styles.productImage}
       />
       <View style={styles.productInfo}>

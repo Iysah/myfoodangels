@@ -22,6 +22,7 @@ import {
   shouldShowFlashSales 
 } from '../../services/firebase/appConfig';
 import { listenToDocument } from '../../services/firebase/firestore';
+import ToastService from '../../utils/Toast';
 
 const HomeScreen = observer(() => {
   const navigation = useNavigation();
@@ -106,12 +107,19 @@ const HomeScreen = observer(() => {
     const handleAddToCart = (e: any) => {
       e.stopPropagation();
       cartStore.addItem(item, 1);
+      ToastService.success('Added to Cart', `${item.name} added to cart`);
     };
 
     const handleToggleWishlist = (e: any) => {
       e.stopPropagation();
       // Toggle wishlist for Firebase Product using string IDs
       wishlistStore.toggleWishlistItem(item);
+      
+      if (isInWishlist) {
+        ToastService.info('Removed from Wishlist', `${item.name} removed from wishlist`);
+      } else {
+        ToastService.success('Added to Wishlist', `${item.name} added to wishlist`);
+      }
     };
 
     return (
@@ -120,7 +128,7 @@ const HomeScreen = observer(() => {
         onPress={() => handleProductPress(item.id)}
       >
         <View style={styles.productImageContainer}>
-          <Image source={{ uri: item?.images?.[0] || item?.picture }} style={styles.productImage} />
+          <Image source={{ uri: item?.image || item?.images?.[0] || item?.picture }} style={styles.productImage} />
           <TouchableOpacity 
             style={styles.wishlistButton}
             onPress={handleToggleWishlist}
@@ -232,6 +240,7 @@ const HomeScreen = observer(() => {
         />
       );
     } else if (section.type === 'grid') {
+  
       // Use renderLoystarProduct for Farm Offtake section if it's ever displayed as grid
   const renderFunction = renderProduct;
       

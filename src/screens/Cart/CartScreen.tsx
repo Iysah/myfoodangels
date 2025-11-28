@@ -64,7 +64,7 @@ const CartScreen = observer(() => {
 
   const renderCartItem = ({ item }: { item: any }) => (
     <View style={styles.cartItem}>
-      <Image source={{ uri: item?.product?.imageUrl }} style={styles.productImage} />
+      <Image source={{ uri: item?.product?.image || item?.product?.images?.[0] || 'https://via.placeholder.com/150' }} style={styles.productImage} />
       
       <View style={styles.productInfo}>
         <Text style={styles.productName}>{item.product.name}</Text>

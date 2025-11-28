@@ -80,7 +80,7 @@ class ProductStore {
       // Limit results
       constraints.push(FirestoreService.createLimitConstraint(50));
       
-      const products = await FirestoreService.queryDocuments<Product>('products', constraints);
+      const products = await FirestoreService.queryDocuments<Product>('newProducts', constraints);
       
       // Apply price range filter client-side (Firestore doesn't support range queries on multiple fields)
       let filteredProducts = products;
@@ -150,7 +150,7 @@ class ProductStore {
         FirestoreService.createLimitConstraint(10),
       ];
       
-      const featuredProducts = await FirestoreService.queryDocuments<Product>('products', constraints);
+      const featuredProducts = await FirestoreService.queryDocuments<Product>('newProducts', constraints);
       
       runInAction(() => {
         this.featuredProducts = featuredProducts;
@@ -177,7 +177,7 @@ class ProductStore {
         FirestoreService.createWhereConstraint('category.loystarId', '==', loystarCategoryId),
         limitConstraint,
       ];
-      let products = await FirestoreService.queryDocuments<Product>('products', constraints);
+      let products = await FirestoreService.queryDocuments<Product>('newProducts', constraints);
 
       const asTime = (val: any): number => {
         if (!val) return 0;
@@ -245,7 +245,7 @@ class ProductStore {
     this.isLoading = true;
     this.error = null;
     try {
-      const product = await FirestoreService.getDocument<Product>('products', productId);
+      const product = await FirestoreService.getDocument<Product>('newProducts', productId);
       
       runInAction(() => {
         this.currentProduct = product;
@@ -282,7 +282,7 @@ class ProductStore {
         FirestoreService.createLimitConstraint(50)
       ];
       
-      const allProducts = await FirestoreService.queryDocuments<Product>('products', constraints);
+      const allProducts = await FirestoreService.queryDocuments<Product>('newProducts', constraints);
       
       // Client-side filtering
       const searchResults = allProducts.filter(product => {
@@ -339,7 +339,7 @@ class ProductStore {
         const newRating = reviews.length > 0 ? totalRating / reviews.length : 0;
         
         // Update product
-        await FirestoreService.updateDocument('products', review.productId, {
+        await FirestoreService.updateDocument('newProducts', review.productId, {
           rating: newRating,
           ratingCount: reviews.length
         });

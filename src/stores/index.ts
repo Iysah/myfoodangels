@@ -7,6 +7,8 @@ import walletStore from './WalletStore';
 import faqStore from './FAQStore';
 import { WishlistStore } from './WishlistStore';
 
+import notificationStore from './NotificationStore';
+
 // Create wishlist store instance
 const wishlistStore = new WishlistStore();
 
@@ -18,7 +20,8 @@ const RootStore = {
   orderStore,
   walletStore,
   faqStore,
-  wishlistStore
+  wishlistStore,
+  notificationStore
 };
 
 export {
@@ -29,5 +32,6 @@ export {
   walletStore,
   faqStore,
   wishlistStore,
+  notificationStore,
   RootStore as default
 };

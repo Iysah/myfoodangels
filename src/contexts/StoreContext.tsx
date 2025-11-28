@@ -7,6 +7,7 @@ import walletStoreInstance, { WalletStore } from '../stores/WalletStore';
 import { FAQStore } from '../stores/FAQStore';
 import { WishlistStore } from '../stores/WishlistStore';
 import { onboardingStore } from '../stores/OnboardingStore';
+import notificationStoreInstance, { NotificationStore } from '../stores/NotificationStore';
 
 // Create store context
 interface StoreContextType {
@@ -18,6 +19,7 @@ interface StoreContextType {
   faqStore: FAQStore;
   wishlistStore: WishlistStore;
   onboardingStore: typeof onboardingStore;
+  notificationStore: NotificationStore;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -37,6 +39,7 @@ export const StoreProvider: React.FC<StoreProviderProps> = ({ children }) => {
     faqStore: new FAQStore(),
     wishlistStore: new WishlistStore(),
     onboardingStore: onboardingStore,
+    notificationStore: notificationStoreInstance,
   }), []);
 
   return (
