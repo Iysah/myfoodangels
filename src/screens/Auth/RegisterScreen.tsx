@@ -19,6 +19,7 @@ import { BorderRadius, Colors, GlobalStyles, Spacing, Typography } from '../../s
 import { useStores } from '../../contexts/StoreContext';
 import ToastService from '../../utils/Toast';
 import { AuthStackParamList } from '../../navigation/types';
+import LogoIcon from '../../../assets/icons/logo';
 
 type RegisterScreenRouteProp = RouteProp<AuthStackParamList, 'Register'>;
 
@@ -63,20 +64,12 @@ const RegisterScreen = observer(() => {
 
     setIsLoading(true);
     try {
-      // Register with both Firebase and Loystar using the AuthStore
+      // Register with both Firebase using the AuthStore
       await authStore.register(email, password, {
         displayName: `${firstName} ${lastName}`,
         firstName: firstName,
         lastName: lastName,
         phoneNumber: phoneNumber,
-        // Default values for required Loystar fields
-        dateOfBirth: "NIL",
-        sex: "NIL",
-        addressLine1: "NIL",
-        addressLine2: "NIL",
-        postcode: "0",
-        state: "NIL",
-        country: "NIL"
       });
       
       ToastService.success('Your account has been created successfully');
@@ -135,18 +128,14 @@ const RegisterScreen = observer(() => {
           contentContainerStyle={styles.scrollView}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.headerContainer}>
-            {/* <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => navigation.goBack()}
-            >
-              <Text style={styles.backButtonText}>←</Text>
-            </TouchableOpacity> */}
-            <Text style={styles.headerTitle}>Create Account</Text>
-            <View style={styles.placeholder} />
+          <View style={styles.headerContainer}>  
+            <View>
+              <LogoIcon />
+            </View>      
+            <Text style={styles.headerTitle}>Create an Account</Text>
           </View>
 
-          <Text style={styles.subtitle}>Sign up to get started</Text>
+          {/* <Text style={styles.subtitle}>Sign up to get started</Text> */}
 
           <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>First Name</Text>
@@ -290,9 +279,11 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
   },
   headerContainer: {
-    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 10,
+    flexDirection: 'column',
+
     marginBottom: 20,
   },
   backButton: {

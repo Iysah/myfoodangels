@@ -23,7 +23,7 @@ export type RootStackParamList = {
   Main: NavigatorScreenParams<MainTabParamList>;
   Categories: undefined;
   Search: undefined;
-  Products: { category: { id: string; name: string; loystarId: number; image?: string } };
+  Products: { category: { id: string; name: string; image?: string; loystarId?: number } };
   ProductDetails: { productId: string };
   Cart: undefined;
   Checkout: undefined;

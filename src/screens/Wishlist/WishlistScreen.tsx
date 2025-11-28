@@ -17,7 +17,7 @@ import { ArrowLeft, Bell, Heart, ShoppingCart } from 'lucide-react-native';
 import { Colors, Spacing, Typography } from '../../styles/globalStyles';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
-import { LoystarProduct } from '../../services/loystar/api';
+import { Product } from '../../types/Product';
 import ToastService from '../../utils/Toast';
 import AuthPrompt from '../../components/AuthPrompt';
 
@@ -37,7 +37,7 @@ const WishlistScreen: React.FC<WishlistScreenProps> = observer(() => {
     }
   }, [authStore]);
 
-  const handleRemoveFromWishlist = (productId: number, productName: string) => {
+  const handleRemoveFromWishlist = (productId: string, productName: string) => {
     wishlistStore.removeFromWishlist(productId);
     ToastService.success(`${productName} removed from wishlist`);
   };
@@ -52,29 +52,9 @@ const WishlistScreen: React.FC<WishlistScreenProps> = observer(() => {
     navigation.navigate('Cart');
   };
 
-  const handleAddToCart = (product: LoystarProduct) => {
+  const handleAddToCart = (product: Product) => {
     try {
-      // Convert wishlist product to cart product format
-      const cartProduct = {
-        id: product.id.toString(),
-        name: product.name,
-        price: parseFloat(product.price),
-        description: product.description || '',
-        images: [product.picture || 'https://via.placeholder.com/150'],
-        category: 'Wishlist Item',
-        stock: 100, // Default stock
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        isActive: true,
-        isFeatured: false,
-        brand: undefined,
-        weight: product.weight ? parseFloat(product.weight) : undefined,
-        tags: [],
-        rating: 0,
-        reviewCount: 0,
-      };
-      
-      cartStore.addItem(cartProduct, 1);
+      cartStore.addItem(product, 1);
       ToastService.success(`${product.name} added to cart!`);
     } catch (err: any) {
       console.error('Error adding to cart:', err);
@@ -82,10 +62,10 @@ const WishlistScreen: React.FC<WishlistScreenProps> = observer(() => {
     }
   };
 
-  const renderWishlistItem = ({ item }: { item: LoystarProduct }) => (
+  const renderWishlistItem = ({ item }: { item: Product }) => (
     <View style={styles.productCard}>
       <Image 
-        source={{ uri: item.picture || 'https://via.placeholder.com/150' }} 
+        source={{ uri: item.images?.[0] || 'https://via.placeholder.com/150' }} 
         style={styles.productImage}
       />
       <View style={styles.productInfo}>
@@ -95,7 +75,7 @@ const WishlistScreen: React.FC<WishlistScreenProps> = observer(() => {
             {item.description}
           </Text>
         )}
-        <Text style={styles.productPrice}>₦{parseFloat(item.price).toLocaleString()}</Text>
+        <Text style={styles.productPrice}>₦{(item.salePrice || item.price).toLocaleString()}</Text>
         
         <View style={styles.buttonContainer}>
           <TouchableOpacity 

@@ -27,7 +27,7 @@ import { Wallet, CreditCard, Landmark, Smartphone } from 'lucide-react-native';
 import Constants from 'expo-constants';
 import PaystackService from '../../services/paystack/PaystackService';
 import { setDocument, addDocument, createTimestamp, getDocument, updateDocument } from '../../services/firebase/firestore';
-import { LoystarAPI } from '../../services/loystar/api';
+// Removed LoystarAPI; Firebase-only order processing
 
 const CheckoutScreen = observer(() => {
   const navigation = useNavigation();
@@ -372,7 +372,7 @@ const CheckoutScreen = observer(() => {
 
         const paymentReference = `wallet_${orderId}`;
 
-        // Create order in Firebase and Loystar after successful payment
+        // Create order in Firebase after successful payment
         await createOrder(paymentReference);
         
       } else {
@@ -434,7 +434,7 @@ const CheckoutScreen = observer(() => {
           throw new Error(paymentResult.error || 'Payment failed');
         }
 
-        // Payment successful - create order in Firebase and Loystar
+        // Payment successful - create order in Firebase
         await createOrder(paymentResult.reference);
       }
 
@@ -559,16 +559,6 @@ const CheckoutScreen = observer(() => {
 
       // Save order to Firebase using addDocument
       await addDocument('orders', singleOrder);
-    
-      // Send order to Loystar
-      const orderData = {
-        items: cartStore.items,
-        total: total,
-        deliveryFee: deliveryFee,
-        discount: discount,
-        subtotal: subtotal
-      };
-      await sendOrderToLoystar(orderData, reference);
       
       // Clear cart and navigate to confirmation
       cartStore.clearCart();
@@ -615,183 +605,7 @@ const CheckoutScreen = observer(() => {
     );
   };
 
-  // Helper function to save order to Firebase
-  const saveOrderToFirebase = async (orderData: any, orderId: string, paymentReference: string) => {
-    try {
-      // Transform to match Firebase structure
-      const firebaseOrder = {
-        orderId: orderId || '',
-        paymentReference: paymentReference || '',
-        status: 'success',
-        userId: authStore.user?.id || '',
-        email: authStore.user?.email || billingAddress.email || '',
-        name: billingAddress.fullName || '',
-        firstName: billingAddress.fullName?.split(' ')[0] || '',
-        lastName: billingAddress.fullName?.split(' ').slice(1).join(' ') || '',
-        phone: billingAddress.phoneNumber || '',
-        address: billingAddress.deliveryAddress || '',
-        totalAmount: orderData.total || 0,
-        cartItems: orderData.items?.map((item: any) => {
-          // Create a clean item object without undefined values
-          const cleanItem: any = {
-            id: item.productId || '',
-            name: item.productName || '',
-            image: item.productImage || '',
-            quantity: item.quantity || 0,
-            price: item.price || 0,
-            totalPrice: item.totalPrice || 0,
-          };
-
-          // Only add optional fields if they have valid values
-          if (item.loystarId !== undefined && item.loystarId !== null) {
-            cleanItem.loystarId = item.loystarId;
-          }
-          if (item.category && typeof item.category === 'object' && Object.keys(item.category).length > 0) {
-            cleanItem.category = item.category;
-          }
-          if (item.chosenUnit) {
-            cleanItem.chosenUnit = item.chosenUnit;
-          }
-          if (item.costprice !== undefined && item.costprice !== null) {
-            cleanItem.costprice = item.costprice;
-          }
-          if (item.createdDate) {
-            cleanItem.createdDate = item.createdDate;
-          } else {
-            cleanItem.createdDate = new Date().toISOString();
-          }
-          if (item.created_date) {
-            cleanItem.created_date = item.created_date;
-          } else {
-            cleanItem.created_date = new Date().toISOString();
-          }
-          if (item.desc) {
-            cleanItem.desc = item.desc;
-          }
-          if (item.inStock !== undefined) {
-            cleanItem.inStock = item.inStock;
-          } else {
-            cleanItem.inStock = true;
-          }
-          if (item.loystarUnit) {
-            cleanItem.loystarUnit = item.loystarUnit;
-          }
-          if (item.loystarUnitId !== undefined && item.loystarUnitId !== null) {
-            cleanItem.loystarUnitId = item.loystarUnitId;
-          }
-          if (item.loystarUnitQty !== undefined && item.loystarUnitQty !== null) {
-            cleanItem.loystarUnitQty = item.loystarUnitQty;
-          }
-          if (item.merchant_id !== undefined && item.merchant_id !== null) {
-            cleanItem.merchant_id = item.merchant_id;
-          }
-          if (item.nameYourPrice !== undefined) {
-            cleanItem.nameYourPrice = item.nameYourPrice;
-          }
-          if (item.no_of_items !== undefined && item.no_of_items !== null) {
-            cleanItem.no_of_items = item.no_of_items;
-          }
-          if (item.rating !== undefined && item.rating !== null) {
-            cleanItem.rating = item.rating;
-          }
-          if (item.ratingCount !== undefined && item.ratingCount !== null) {
-            cleanItem.ratingCount = item.ratingCount;
-          }
-          if (item.slug) {
-            cleanItem.slug = item.slug;
-          }
-          if (item.units && Array.isArray(item.units)) {
-            cleanItem.units = item.units;
-          }
-          if (item.options) {
-            cleanItem.options = item.options;
-          }
-
-          return cleanItem;
-        }) || [],
-        created_date: new Date(),
-      };
-
-      await setDocument('orders', orderId, firebaseOrder);
-      console.log('Order saved to Firebase successfully');
-    } catch (error: any) {
-      console.error('Failed to save order to Firebase:', error);
-      throw new Error('Failed to save order details');
-    }
-  };
-
-  // Helper function to send order to Loystar
-  const sendOrderToLoystar = async (orderData: any, orderId: string) => {
-    try {
-      // Determine payment method based on selectedPaymentMethod
-      let paymentMethodType = 'card'; // default
-      if (selectedPaymentMethod === 'wallet') {
-        paymentMethodType = 'cash';
-      } else if (selectedPaymentMethod.startsWith('card_')) {
-        paymentMethodType = 'card';
-      } else {
-        paymentMethodType = 'card'; // fallback for any other payment method
-      }
-
-      // Transform order data to Loystar API v2 format
-      const loystarData = {
-        product_id: orderData.items.map((item: any) => parseInt(item.productId || item.product?.id)),
-        quantity: orderData.items.map((item: any) => item.quantity),
-        user_id: authStore.loystarData?.customer?.id || authStore.loystarData?.user?.id || 0,
-        amount: orderData.total,
-        merchant_id: parseInt(process.env.EXPO_PUBLIC_MERCHANT_ID || '22244'),
-        payment_method: paymentMethodType,
-        order_reference: orderId,
-        customer_email: authStore.user?.email || '',
-        customer_phone: authStore.user?.phoneNumber || '',
-        delivery_address: `${billingAddress.deliveryAddress || ''}, ${billingAddress.state || ''}, ${billingAddress.country || ''}`,
-        items: orderData.items.map((item: any) => ({
-          product_id: parseInt(item.productId || item.product?.id),
-          product_name: item.productName || item.product?.name,
-          quantity: item.quantity,
-          unit_price: item.price || item.product?.price || item.product?.salePrice || 0,
-          total_price: item.totalPrice || (item.quantity * (item.price || item.product?.price || item.product?.salePrice || 0)),
-          points_earned: Math.floor(item.totalPrice || (item.quantity * (item.price || item.product?.price || item.product?.salePrice || 0))), // 1:1 points ratio
-        })),
-      };
-
-      console.log('Sending order to Loystar API v2:', loystarData);
-
-      // Send to Loystar API v2 endpoint
-      const response = await fetch('https://api.loystar.co/api/v2/sales', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authStore.loystarToken || LoystarAPI.getAuthToken()}`,
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify(loystarData),
-      });
-
-      const responseText = await response.text();
-      console.log('Loystar API response status:', response.status);
-      console.log('Loystar API response:', responseText);
-
-      if (!response.ok) {
-        throw new Error(`Loystar API error: ${response.status} - ${responseText}`);
-      }
-
-      const result = JSON.parse(responseText);
-      console.log('Order sent to Loystar successfully:', result);
-      
-      return result;
-    } catch (error: any) {
-      console.error('Failed to send order to Loystar:', error);
-      // Don't throw error here as it shouldn't block the order completion
-      // But log detailed error for debugging
-      console.error('Loystar error details:', {
-        message: error.message,
-        orderData: orderData,
-        orderId: orderId,
-        loystarToken: authStore.loystarToken ? 'present' : 'missing',
-      });
-    }
-  };
+  // Removed Loystar helpers; orders are stored in Firebase only
 
   // Render billing address form
   const renderBillingAddressForm = () => (

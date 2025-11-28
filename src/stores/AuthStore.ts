@@ -3,7 +3,6 @@ import { User, AddressDetails } from '../types';
 import * as AuthService from '../services/firebase/auth';
 import { auth } from '../services/firebase/config';
 import { User as FirebaseUser } from 'firebase/auth';
-import { LoystarAPI, LoystarAuthResponse, LoystarRegistrationRequest } from '../services/loystar';
 import { updateDocument, setDocument, createTimestamp } from '../services/firebase/firestore';
 
 class AuthStore {
@@ -11,19 +10,17 @@ class AuthStore {
   isLoading: boolean = false;
   error: string | null = null;
   isFirebaseAuthenticated: boolean = false;
-  isLoystarAuthenticated: boolean = false;
   isGuest: boolean = false;
-  loystarData: LoystarAuthResponse | null = null;
-  loystarToken: string | null = null;
+  // Removed Loystar-specific state
 
   constructor() {
     makeAutoObservable(this);
     this.initializeAuthState();
   }
 
-  // Computed property: user is only authenticated if both Firebase and Loystar auth succeed
+  // Computed property: user is authenticated if Firebase auth succeeds and not guest
   get isAuthenticated(): boolean {
-    return this.isFirebaseAuthenticated && this.isLoystarAuthenticated && !this.isGuest;
+    return this.isFirebaseAuthenticated && !this.isGuest;
   }
 
   initializeAuthState = () => {
@@ -44,14 +41,9 @@ class AuthStore {
             updatedAt: new Date(),
           };
           this.isFirebaseAuthenticated = true;
-          // Note: Loystar authentication status is maintained separately
         } else {
           this.user = null;
           this.isFirebaseAuthenticated = false;
-          // Reset Loystar authentication when Firebase auth is lost
-          this.isLoystarAuthenticated = false;
-          this.loystarData = null;
-          this.loystarToken = null;
         }
         this.isLoading = false;
         this.error = null;
@@ -81,75 +73,10 @@ class AuthStore {
     this.error = null;
     
     let firebaseUser: any = null;
-    let loystarRegistered = false;
     
     try {
-      console.log('Starting dual registration process for:', email);
-      
-      // First, register with Firebase
+      // Register with Firebase
       firebaseUser = await AuthService.registerWithEmail(email, password);
-      console.log('Firebase registration successful:', firebaseUser);
-      
-      // Then, register with Loystar using the provided data
-      try {
-        console.log('Attempting Loystar registration...');
-        
-        const loystarData: LoystarRegistrationRequest = {
-          data: {
-            first_name: additionalData?.firstName || '',
-            last_name: additionalData?.lastName || '',
-            email: email,
-            phone_number: additionalData?.phoneNumber || '',
-            date_of_birth: additionalData?.dateOfBirth || 'NIL',
-            sex: additionalData?.sex || 'NIL',
-            local_db_created_at: 'NIL',
-            address_line1: additionalData?.addressLine1 || 'NIL',
-            address_line2: additionalData?.addressLine2 || 'NIL',
-            postcode: additionalData?.postcode ? parseInt(additionalData.postcode) : 0,
-            state: additionalData?.state || 'NIL',
-            country: additionalData?.country || 'NIL',
-          }
-        };
-        
-        const loystarResponse = await LoystarAPI.registerUser(loystarData);
-        loystarRegistered = true;
-        
-        runInAction(() => {
-          this.loystarData = loystarResponse;
-          this.loystarToken = loystarResponse.token;
-          this.isLoystarAuthenticated = true;
-          this.isLoading = false;
-        });
-        
-        console.log('Loystar registration successful:', loystarResponse);
-        console.log('Loystar token saved:', loystarResponse.token);
-        
-        return firebaseUser;
-        
-      } catch (loystarError: any) {
-        console.error('Loystar registration failed:', loystarError.message);
-        
-        // If Loystar registration fails, delete the Firebase user to maintain consistency
-        if (firebaseUser) {
-          try {
-            await firebaseUser.delete();
-            console.log('Firebase user deleted due to Loystar registration failure');
-          } catch (deleteError) {
-            console.error('Failed to delete Firebase user:', deleteError);
-          }
-        }
-        
-        runInAction(() => {
-          this.error = `Registration failed: ${loystarError.message}`;
-          this.isLoading = false;
-          this.isFirebaseAuthenticated = false;
-          this.isLoystarAuthenticated = false;
-          this.user = null;
-        });
-        
-        throw new Error(`Registration failed: Unable to create account on both systems. ${loystarError.message}`);
-      }
-      
     } catch (error: any) {
       console.error('Registration error:', error);
       
@@ -158,7 +85,6 @@ class AuthStore {
         this.error = error.message;
         this.isLoading = false;
         this.isFirebaseAuthenticated = false;
-        this.isLoystarAuthenticated = false;
         this.user = null;
       });
       
@@ -170,51 +96,13 @@ class AuthStore {
     this.isLoading = true;
     this.error = null;
     try {
-      console.log('Starting login process for:', email);
-      
-      // First, authenticate with Firebase
       const user = await AuthService.loginWithEmail(email, password);
-      console.log('Firebase login successful:', user);
-      
-      // Then, authenticate with Loystar using the email - BOTH must succeed
-      try {
-        console.log('Attempting Loystar authentication...');
-        const loystarResponse = await LoystarAPI.loginWithEmail(email);
-        
-        runInAction(() => {
-          this.loystarData = loystarResponse;
-          this.loystarToken = loystarResponse.token;
-          this.isFirebaseAuthenticated = true; // Set Firebase auth success
-          this.isLoystarAuthenticated = true; // Set Loystar auth success
-          this.isGuest = false;
-          this.isLoading = false;
-        });
-        
-        console.log('Loystar authentication successful:', loystarResponse);
-        console.log('Loystar token saved:', loystarResponse.token);
-        
-      } catch (loystarError: any) {
-        console.error('Loystar authentication failed:', loystarError.message);
-        // If Loystar fails, logout from Firebase and fail the entire login
-        await AuthService.logout();
-        runInAction(() => {
-          this.error = `Authentication failed: ${loystarError.message}`;
-          this.isLoading = false;
-          this.isFirebaseAuthenticated = false;
-          this.isLoystarAuthenticated = false;
-          this.user = null;
-        });
-        throw new Error(`Complete authentication failed: ${loystarError.message}`);
-      }
-      
-      return user;
     } catch (error: any) {
       console.error('Login failed:', error);
       runInAction(() => {
         this.error = error.message;
         this.isLoading = false;
         this.isFirebaseAuthenticated = false;
-        this.isLoystarAuthenticated = false;
       });
       throw error;
     }
@@ -282,13 +170,8 @@ class AuthStore {
       runInAction(() => {
         this.user = null;
         this.isFirebaseAuthenticated = false;
-        this.isLoystarAuthenticated = false;
-        this.loystarData = null;
-        this.loystarToken = null;
         this.isLoading = false;
       });
-      // Clear Loystar token from the API class as well
-      LoystarAPI.setAuthToken('');
     } catch (error: any) {
       runInAction(() => {
         this.error = error.message;
@@ -298,20 +181,7 @@ class AuthStore {
     }
   };
 
-  // Method to get Loystar token for API calls
-  getLoystarToken = (): string | null => {
-    return this.loystarToken;
-  };
-
-  // Method to get Loystar customer data
-  getLoystarCustomer = () => {
-    return this.loystarData?.customer || null;
-  };
-
-  // Method to get Loystar user data
-  getLoystarUser = () => {
-    return this.loystarData?.user || null;
-  };
+  // Removed Loystar helpers
 
   resetPassword = async (email: string) => {
     this.isLoading = true;
@@ -502,7 +372,6 @@ class AuthStore {
     runInAction(() => {
       this.isGuest = true;
       this.isFirebaseAuthenticated = false;
-      this.isLoystarAuthenticated = false;
       this.user = null;
       this.error = null;
     });

@@ -19,14 +19,15 @@ import LogoIcon from '../../../assets/icons/logo';
 import { 
   AppConfig, 
   listenToAppConfig, 
-  shouldShowFarmOfftake, 
   shouldShowFlashSales 
 } from '../../services/firebase/appConfig';
+import { listenToDocument } from '../../services/firebase/firestore';
 
 const HomeScreen = observer(() => {
   const navigation = useNavigation();
   const { authStore, productStore, cartStore, wishlistStore } = useStores();
   const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
+  const [unreadCount, setUnreadCount] = useState<number>(0);
 
   useEffect(() => {
     const loadData = async () => {
@@ -41,29 +42,20 @@ const HomeScreen = observer(() => {
         await Promise.all([
           productStore.fetchFeaturedProducts(),
           productStore.fetchCategories(),
-          productStore.fetchAllLoystarProducts(50), // Fetch random 10 products for All Products section
+          productStore.fetchProducts(),
         ]);
-        
-        // Fetch Farm Offtake products from Loystar if user is authenticated
-        if (authStore.loystarToken) {
-          console.log('Fetching Farm Offtake products...');
-          await productStore.fetchFarmOfftakeProducts(1, 6);
-        } else {
-          console.log('No Loystar token available, skipping Farm Offtake products');
-        }
         
         console.log('HomeScreen: Data loaded successfully');
         console.log('Featured products count:', productStore.featuredProducts.length);
         console.log('Categories count:', productStore.categories.length);
-        console.log('Farm Offtake products count:', productStore.farmOfftakeProducts.length);
-        console.log('All Loystar products count:', productStore.allLoystarProducts.length);
+        console.log('Products count:', productStore.products.length);
       } catch (error) {
         console.error('Error loading home screen data:', error);
       }
     };
 
     loadData();
-  }, [productStore, authStore.loystarToken]);
+  }, [productStore]);
 
   // Listen to Firebase app configuration changes
   useEffect(() => {
@@ -74,6 +66,23 @@ const HomeScreen = observer(() => {
 
     return () => unsubscribe();
   }, []);
+
+  // Listen to user notifications for unread count badge
+  useEffect(() => {
+    const userId = authStore.user?.id;
+    if (!userId) {
+      setUnreadCount(0);
+      return;
+    }
+
+    const unsubscribe = listenToDocument<any>('notifications', userId, (doc) => {
+      const items = (doc?.notifications || []) as Array<{ read?: boolean }>
+      const count = items.reduce((acc, n) => acc + (!n.read ? 1 : 0), 0)
+      setUnreadCount(count)
+    })
+
+    return () => unsubscribe()
+  }, [authStore.user?.id])
 
   const handleProductPress = (productId: string) => {
     navigation.navigate('ProductDetails', { productId });
@@ -92,7 +101,7 @@ const HomeScreen = observer(() => {
   };
 
   const renderProduct = ({ item }: { item: any }) => {
-    const isInWishlist = wishlistStore.isInWishlist(parseInt(item.id));
+    const isInWishlist = wishlistStore.isInWishlist(item.id);
     
     const handleAddToCart = (e: any) => {
       e.stopPropagation();
@@ -101,9 +110,8 @@ const HomeScreen = observer(() => {
 
     const handleToggleWishlist = (e: any) => {
       e.stopPropagation();
-      // For regular products, we'll skip wishlist functionality for now
-      // since they don't match the LoystarProduct interface
-      console.log('Wishlist functionality not available for regular products');
+      // Toggle wishlist for Firebase Product using string IDs
+      wishlistStore.toggleWishlistItem(item);
     };
 
     return (
@@ -112,7 +120,7 @@ const HomeScreen = observer(() => {
         onPress={() => handleProductPress(item.id)}
       >
         <View style={styles.productImageContainer}>
-          <Image source={{ uri: item?.picture || item?.images?.[0] }} style={styles.productImage} />
+          <Image source={{ uri: item?.images?.[0] || item?.picture }} style={styles.productImage} />
           <TouchableOpacity 
             style={styles.wishlistButton}
             onPress={handleToggleWishlist}
@@ -139,93 +147,6 @@ const HomeScreen = observer(() => {
     );
   };
 
-  const renderLoystarProduct = ({ item }: { item: any }) => {
-    const currentPrice = parseFloat(item.price);
-    const originalPrice = parseFloat(item.original_price);
-    const hasDiscount = originalPrice && currentPrice < originalPrice;
-    const isInWishlist = wishlistStore.isInWishlist(item.id);
-    
-    const handleAddToCart = (e: any) => {
-      e.stopPropagation();
-      // Convert LoystarProduct to Product format for cart
-      const productForCart = {
-        id: item.id.toString(),
-        name: item.name,
-        description: item.description || '',
-        price: currentPrice,
-        images: [item.picture?.trim() || 'https://via.placeholder.com/150'],
-        category: item.category || 'General',
-        tags: [],
-        stock: item.stock || 1,
-        rating: 0,
-        reviewCount: 0,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        isActive: true,
-      };
-      cartStore.addItem(productForCart, 1);
-    };
-
-    const handleToggleWishlist = (e: any) => {
-      e.stopPropagation();
-      wishlistStore.toggleWishlistItem(item);
-    };
-    
-    return (
-      <TouchableOpacity
-        style={styles.productCard}
-        onPress={() => handleProductPress(item.id.toString())}
-      >
-        <View style={styles.productImageContainer}>
-          <Image 
-            source={{ uri: item.picture?.trim() || 'https://via.placeholder.com/150' }} 
-            style={styles.productImage} 
-          />
-          <TouchableOpacity 
-            style={styles.wishlistButton}
-            onPress={handleToggleWishlist}
-          >
-            <Heart 
-              size={20} 
-              color={isInWishlist ? Colors.primary : Colors.textSecondary}
-              fill={isInWishlist ? Colors.primary : 'transparent'}
-            />
-          </TouchableOpacity>
-          {hasDiscount && (
-            <View style={styles.discountBadge}>
-              <Text style={styles.discountText}>
-                {Math.round(((originalPrice - currentPrice) / originalPrice) * 100)}% OFF
-              </Text>
-            </View>
-          )}
-        </View>
-        <View style={styles.productInfo}>
-          <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
-          <View style={styles.priceContainer}>
-            <Text style={styles.productPrice}>
-              ₦{currentPrice.toFixed(2)}
-            </Text>
-            {hasDiscount && (
-              <Text style={styles.originalPrice}>₦{originalPrice.toFixed(2)}</Text>
-            )}
-          </View>
-          {item.tax && (
-            <Text style={styles.productCategory}>
-              +{item.tax_rate}% {item.tax_type}
-            </Text>
-          )}
-          <TouchableOpacity 
-            style={styles.addToCartButton}
-            onPress={handleAddToCart}
-          >
-            <ShoppingCart size={16} color={Colors.white} />
-            <Text style={styles.addToCartText}>Add to Cart</Text>
-          </TouchableOpacity>
-        </View>
-      </TouchableOpacity>
-    );
-  };
-
   const renderCategory = ({ item }: { item: Category }) => (
     <TouchableOpacity
       style={styles.categoryCard}
@@ -234,7 +155,6 @@ const HomeScreen = observer(() => {
           category: {
             id: item.id,
             name: item.name,
-            loystarId: item.loystarId || 0,
             image: item.image,
           }
         });
@@ -291,7 +211,7 @@ const HomeScreen = observer(() => {
       );
     } else if (section.type === 'horizontal') {
       // Use renderLoystarProduct for Farm Offtake section
-      const renderFunction = section.title === 'Farm Offtake' ? renderLoystarProduct : renderProduct;
+  const renderFunction = renderProduct;
       
       return (
         <FlatList
@@ -313,7 +233,7 @@ const HomeScreen = observer(() => {
       );
     } else if (section.type === 'grid') {
       // Use renderLoystarProduct for Farm Offtake section if it's ever displayed as grid
-      const renderFunction = section.title === 'Farm Offtake' ? renderLoystarProduct : renderProduct;
+  const renderFunction = renderProduct;
       
       return (
         <FlatList
@@ -341,18 +261,7 @@ const HomeScreen = observer(() => {
       },
     ];
 
-    // Add Farm Offtake section if enabled by Firebase config
-    if (appConfig && shouldShowFarmOfftake(appConfig)) {
-      baseSections.push({
-        title: 'Farm Offtake',
-        data: [productStore?.farmOfftakeProducts || []],
-        type: 'horizontal',
-        showViewAll: true,
-        emptyMessage: authStore.loystarToken ? 'No farm offtake products available' : 'Please login to view farm offtake products',
-        isLoading: productStore?.farmOfftakeLoading,
-        error: productStore?.farmOfftakeError,
-      });
-    }
+    // Removed Farm Offtake section and Loystar-dependent content
 
     // Add Flash Sales section if enabled by Firebase config
     if (appConfig && shouldShowFlashSales(appConfig)) {
@@ -376,11 +285,9 @@ const HomeScreen = observer(() => {
       },
       {
         title: 'All Products',
-        data: [productStore?.allLoystarProducts || []],
+        data: [productStore?.products || []],
         type: 'grid',
-        showViewAll: false,
-        isLoading: productStore?.allProductsLoading,
-        error: productStore?.allProductsError,
+        showViewAll: true,
         emptyMessage: 'No products available',
       }
     );
@@ -389,14 +296,8 @@ const HomeScreen = observer(() => {
   }, [
     appConfig,
     productStore?.categories,
-    productStore?.farmOfftakeProducts,
     productStore?.products,
-    productStore?.farmOfftakeLoading,
-    productStore?.farmOfftakeError,
-    productStore?.allLoystarProducts,
-    productStore?.allProductsLoading,
-    productStore?.allProductsError,
-    authStore.loystarToken,
+    
   ]);
 
   return (
@@ -421,7 +322,16 @@ const HomeScreen = observer(() => {
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.cartButton} onPress={handleNotificationPress}>
-            <Bell size={22} color={'#000'}/>
+            <View style={styles.cartIconContainer}>
+              <Bell size={22} color={'#000'}/>
+              {unreadCount > 0 && (
+                <View style={styles.cartBadge}>
+                  <Text style={styles.cartBadgeText}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </View>
           </TouchableOpacity>
         </View>
       </View>

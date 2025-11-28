@@ -1,9 +1,9 @@
 import { makeAutoObservable, runInAction } from 'mobx';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { LoystarProduct } from '../services/loystar/api';
+import { Product } from '../types/Product';
 
 export class WishlistStore {
-  wishlistItems: LoystarProduct[] = [];
+  wishlistItems: Product[] = [];
   isLoading = false;
 
   constructor() {
@@ -42,7 +42,7 @@ export class WishlistStore {
   };
 
   // Add item to wishlist
-  addToWishlist = (product: LoystarProduct) => {
+  addToWishlist = (product: Product) => {
     const existingIndex = this.wishlistItems.findIndex(item => item.id === product.id);
     
     if (existingIndex === -1) {
@@ -52,13 +52,13 @@ export class WishlistStore {
   };
 
   // Remove item from wishlist
-  removeFromWishlist = (productId: number) => {
+  removeFromWishlist = (productId: string) => {
     this.wishlistItems = this.wishlistItems.filter(item => item.id !== productId);
     this.saveWishlistToStorage();
   };
 
   // Toggle item in wishlist
-  toggleWishlistItem = (product: LoystarProduct) => {
+  toggleWishlistItem = (product: Product) => {
     const existingIndex = this.wishlistItems.findIndex(item => item.id === product.id);
     
     if (existingIndex === -1) {
@@ -69,7 +69,7 @@ export class WishlistStore {
   };
 
   // Check if item is in wishlist
-  isInWishlist = (productId: number): boolean => {
+  isInWishlist = (productId: string): boolean => {
     return this.wishlistItems.some(item => item.id === productId);
   };
 

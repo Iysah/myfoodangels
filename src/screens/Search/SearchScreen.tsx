@@ -15,14 +15,13 @@ import { Colors, GlobalStyles, Spacing, Typography } from '../../styles/globalSt
 import { useStores } from '../../contexts/StoreContext';
 import { ArrowLeft, Search } from 'lucide-react-native';
 import { Product } from '../../types';
-import { LoystarAPI, LoystarProduct } from '../../services/loystar/api';
 import Constants from 'expo-constants';
 
 const SearchScreen = observer(() => {
   const navigation = useNavigation();
   const { productStore } = useStores();
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<(Product | LoystarProduct)[]>([]);
+  const [searchResults, setSearchResults] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,22 +32,13 @@ const SearchScreen = observer(() => {
     if (query.trim().length > 2) {
       setIsLoading(true);
       try {
-        // Search local products
-        const localResults = productStore.products.filter(product =>
-          product.name.toLowerCase().includes(query.toLowerCase()) ||
-          product.description?.toLowerCase().includes(query.toLowerCase())
-        );
-
-        // Search Loystar products
-        const loystarResults = await LoystarAPI.searchProducts(query.trim());
-        
-        // Combine results
-        const combinedResults = [...localResults, ...loystarResults];
-        setSearchResults(combinedResults);
+        // Firebase-only search using ProductStore
+        const results = await productStore.searchProducts(query.trim());
+        setSearchResults(results);
       } catch (err) {
         console.error('Search error:', err);
         setError('Failed to search products. Please try again.');
-        // Fallback to local search only
+        // Fallback to client-side filter on already loaded products
         const localResults = productStore.products.filter(product =>
           product.name.toLowerCase().includes(query.toLowerCase()) ||
           product.description?.toLowerCase().includes(query.toLowerCase())
@@ -62,20 +52,15 @@ const SearchScreen = observer(() => {
     }
   };
 
-  const handleProductPress = (productId: string | number) => {
-    navigation.navigate('ProductDetails', { productId: String(productId) });
+  const handleProductPress = (productId: string) => {
+    navigation.navigate('ProductDetails', { productId });
   };
 
-  const isLoystarProduct = (item: Product | LoystarProduct): item is LoystarProduct => {
-    return 'merchant_product_category_id' in item;
-  };
-
-  const renderProduct = ({ item }: { item: Product | LoystarProduct }) => {
-    const isLoystar = isLoystarProduct(item);
-    const productId = isLoystar ? item.id : item.id;
-    const productName = isLoystar ? item.name : item.name;
-    const productPrice = isLoystar ? item.price : item.price;
-    const productImage = isLoystar ? item.picture : (item as Product).images[0];
+  const renderProduct = ({ item }: { item: Product }) => {
+    const productId = item.id;
+    const productName = item.name;
+    const productPrice = item.salePrice || item.price;
+    const productImage = item.images?.[0];
 
     return (
       <TouchableOpacity
@@ -88,10 +73,7 @@ const SearchScreen = observer(() => {
         />
         <View style={styles.productInfo}>
           <Text style={styles.productName} numberOfLines={2}>{productName}</Text>
-          <Text style={styles.productPrice}>₦{productPrice}</Text>
-          {isLoystar && (
-            <Text style={styles.productSource}>Loystar</Text>
-          )}
+          <Text style={styles.productPrice}>₦{productPrice.toLocaleString()}</Text>
         </View>
       </TouchableOpacity>
     );

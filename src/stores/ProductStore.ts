@@ -1,7 +1,7 @@
 import { makeAutoObservable, runInAction } from 'mobx';
 import { Product, FilterOptions, Review, Offer, Category } from '../types';
 import * as FirestoreService from '../services/firebase/firestore';
-import { LoystarAPI, LoystarProduct } from '../services/loystar';
+// Firebase-only implementation
 
 class ProductStore {
   products: Product[] = [];
@@ -14,16 +14,7 @@ class ProductStore {
   error: string | null = null;
   filters: FilterOptions = {};
   
-  // Loystar Farm Offtake products
-  farmOfftakeProducts: LoystarProduct[] = [];
-  farmOfftakeLoading: boolean = false;
-  farmOfftakeError: string | null = null;
-  farmOfftakeMeta: any = null;
-  
-  // Loystar All Products (random 10 for home screen)
-  allLoystarProducts: LoystarProduct[] = [];
-  allProductsLoading: boolean = false;
-  allProductsError: string | null = null;
+  // Removed Loystar-specific product collections and loading states
 
   constructor() {
     makeAutoObservable(this);
@@ -36,9 +27,11 @@ class ProductStore {
     try {
       // Apply filters to query
       const constraints: any[] = [];
+      let clientSort: 'price_asc' | 'price_desc' | 'rating' | 'newest' | undefined;
+      const hasCategoryFilter = !!filters?.category;
       
       if (filters?.category) {
-        constraints.push(FirestoreService.createWhereConstraint('category', '==', filters.category));
+        constraints.push(FirestoreService.createWhereConstraint('category.name', '==', filters.category));
       }
       
       if (filters?.inStock) {
@@ -55,23 +48,33 @@ class ProductStore {
       
       // Add sorting
       if (filters?.sortBy) {
-        switch (filters.sortBy) {
-          case 'price_asc':
-            constraints.push(FirestoreService.createOrderByConstraint('price', 'asc'));
-            break;
-          case 'price_desc':
-            constraints.push(FirestoreService.createOrderByConstraint('price', 'desc'));
-            break;
-          case 'rating':
-            constraints.push(FirestoreService.createOrderByConstraint('rating', 'desc'));
-            break;
-          case 'newest':
-            constraints.push(FirestoreService.createOrderByConstraint('createdAt', 'desc'));
-            break;
+        // To avoid Firestore composite index requirement, perform client-side sort
+        // when a category filter is present.
+        if (hasCategoryFilter) {
+          clientSort = filters.sortBy;
+        } else {
+          switch (filters.sortBy) {
+            case 'price_asc':
+              constraints.push(FirestoreService.createOrderByConstraint('price', 'asc'));
+              break;
+            case 'price_desc':
+              constraints.push(FirestoreService.createOrderByConstraint('price', 'desc'));
+              break;
+            case 'rating':
+              constraints.push(FirestoreService.createOrderByConstraint('rating', 'desc'));
+              break;
+            case 'newest':
+              constraints.push(FirestoreService.createOrderByConstraint('createdAt', 'desc'));
+              break;
+          }
         }
       } else {
         // Default sorting
-        constraints.push(FirestoreService.createOrderByConstraint('createdAt', 'desc'));
+        if (hasCategoryFilter) {
+          clientSort = 'newest';
+        } else {
+          constraints.push(FirestoreService.createOrderByConstraint('createdAt', 'desc'));
+        }
       }
       
       // Limit results
@@ -86,6 +89,39 @@ class ProductStore {
           const price = product.salePrice || product.price;
           return price >= (filters.priceRange?.min || 0) && price <= (filters.priceRange?.max || Infinity);
         });
+      }
+
+      // Client-side sort fallback when a category filter is present
+      if (clientSort) {
+        const asTime = (val: any): number => {
+          if (!val) return 0;
+          if (val instanceof Date) return val.getTime();
+          if (typeof val === 'number') return val;
+          if (typeof val === 'string') {
+            const t = new Date(val).getTime();
+            return isNaN(t) ? 0 : t;
+          }
+          // Firestore Timestamp-like object
+          if (typeof val === 'object' && 'seconds' in val) {
+            return (val.seconds as number) * 1000;
+          }
+          return 0;
+        };
+
+        switch (clientSort) {
+          case 'price_asc':
+            filteredProducts = filteredProducts.sort((a, b) => (a.salePrice || a.price) - (b.salePrice || b.price));
+            break;
+          case 'price_desc':
+            filteredProducts = filteredProducts.sort((a, b) => (b.salePrice || b.price) - (a.salePrice || a.price));
+            break;
+          case 'rating':
+            filteredProducts = filteredProducts.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+            break;
+          case 'newest':
+            filteredProducts = filteredProducts.sort((a, b) => asTime(b.created_date || b.createdAt) - asTime(a.created_date || a.createdAt));
+            break;
+        }
       }
       
       runInAction(() => {
@@ -128,6 +164,50 @@ class ProductStore {
         this.isLoading = false;
       });
       console.error('Error fetching featured products:', error);
+      throw error;
+    }
+  };
+
+  fetchProductsByLoystarCategory = async (loystarCategoryId: number, categoryName?: string) => {
+    this.isLoading = true;
+    this.error = null;
+    try {
+      const limitConstraint = FirestoreService.createLimitConstraint(50);
+      const constraints = [
+        FirestoreService.createWhereConstraint('category.loystarId', '==', loystarCategoryId),
+        limitConstraint,
+      ];
+      let products = await FirestoreService.queryDocuments<Product>('products', constraints);
+
+      const asTime = (val: any): number => {
+        if (!val) return 0;
+        if (val instanceof Date) return val.getTime();
+        if (typeof val === 'number') return val;
+        if (typeof val === 'string') {
+          const t = new Date(val).getTime();
+          return isNaN(t) ? 0 : t;
+        }
+        if (typeof val === 'object' && 'seconds' in val) {
+          return (val.seconds as number) * 1000;
+        }
+        return 0;
+      };
+
+      if (products.length > 0) {
+        products = products.sort((a, b) => asTime(b.created_date || b.createdAt) - asTime(a.created_date || a.createdAt));
+      }
+
+      runInAction(() => {
+        this.products = products;
+        this.filters = categoryName ? { category: categoryName } : {};
+        this.isLoading = false;
+      });
+      return products;
+    } catch (error: any) {
+      runInAction(() => {
+        this.error = error.message;
+        this.isLoading = false;
+      });
       throw error;
     }
   };
@@ -209,8 +289,8 @@ class ProductStore {
         const lowerQuery = query.toLowerCase();
         return (
           product.name.toLowerCase().includes(lowerQuery) ||
-          product.description.toLowerCase().includes(lowerQuery) ||
-          product.tags.some(tag => tag.toLowerCase().includes(lowerQuery))
+          (product.description || product.desc || '').toLowerCase().includes(lowerQuery) ||
+          (product.tags || []).some(tag => tag.toLowerCase().includes(lowerQuery))
         );
       });
       
@@ -261,13 +341,13 @@ class ProductStore {
         // Update product
         await FirestoreService.updateDocument('products', review.productId, {
           rating: newRating,
-          reviewCount: reviews.length
+          ratingCount: reviews.length
         });
         
         runInAction(() => {
           if (this.currentProduct) {
             this.currentProduct.rating = newRating;
-            this.currentProduct.reviewCount = reviews.length;
+            this.currentProduct.ratingCount = reviews.length;
           }
         });
       }
@@ -314,78 +394,7 @@ class ProductStore {
     }
   };
 
-  // Fetch Farm Offtake products from Loystar
-  fetchFarmOfftakeProducts = async (page: number = 1, pageSize: number = 6) => {
-    this.farmOfftakeLoading = true;
-    this.farmOfftakeError = null;
-    
-    try {
-      console.log('Fetching Farm Offtake products from Loystar...');
-      const products: LoystarProduct[] = await LoystarAPI.fetchFarmOfftakeProducts(page, pageSize);
-      
-      runInAction(() => {
-        if (page === 1) {
-          // First page - replace products
-          this.farmOfftakeProducts = products;
-        } else {
-          // Additional pages - append products
-          this.farmOfftakeProducts = [...this.farmOfftakeProducts, ...products];
-        }
-        // Since the API doesn't return pagination meta, we'll handle it differently
-        this.farmOfftakeMeta = {
-          current_page: page,
-          total_pages: products.length === pageSize ? page + 1 : page,
-          total_count: this.farmOfftakeProducts.length,
-          per_page: pageSize
-        };
-        this.farmOfftakeLoading = false;
-        this.farmOfftakeError = null;
-      });
-      
-      console.log('Farm Offtake products fetched successfully:', products.length, 'products');
-      return products;
-    } catch (error: any) {
-      console.error('Error fetching Farm Offtake products:', error);
-      runInAction(() => {
-        this.farmOfftakeError = error.message || 'Failed to fetch Farm Offtake products';
-        this.farmOfftakeLoading = false;
-      });
-      throw error;
-    }
-  };
-
-  // Fetch all products from Loystar and get random 10 for home screen
-  fetchAllLoystarProducts = async (pageSize: number = 50) => {
-    this.allProductsLoading = true;
-    this.allProductsError = null;
-    
-    try {
-      console.log('Fetching all Loystar products for home screen...');
-      
-      // Fetch a larger set of products to choose random ones from
-      const products = await LoystarAPI.fetchProducts(undefined, 1, pageSize);
-      
-      // Shuffle the array and take first 10
-      const shuffled = [...products].sort(() => 0.5 - Math.random());
-      const randomProducts = shuffled.slice(0, 10);
-      
-      runInAction(() => {
-        this.allLoystarProducts = randomProducts;
-        this.allProductsLoading = false;
-        this.allProductsError = null;
-      });
-      
-      console.log(`Fetched ${randomProducts.length} random products for home screen`);
-      return randomProducts;
-    } catch (error: any) {
-      console.error('Error fetching all Loystar products:', error);
-      runInAction(() => {
-        this.allProductsError = error.message || 'Failed to fetch products';
-        this.allProductsLoading = false;
-      });
-      throw error;
-    }
-  };
+  // Removed Loystar-specific fetch methods
 
   // Clear current product
   clearCurrentProduct = () => {

@@ -14,7 +14,7 @@ import Constants from 'expo-constants'
 import { observer } from 'mobx-react-lite'
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native'
 import { ArrowLeft, ShoppingCart, Heart } from 'lucide-react-native'
-import { LoystarAPI, LoystarProduct } from '../../services/loystar'
+import { Product } from '../../types/Product'
 import { Colors, GlobalStyles, Spacing, Typography } from '../../styles/globalStyles'
 import { useStores } from '../../contexts/StoreContext'
 import ToastService from '../../utils/Toast'
@@ -24,8 +24,8 @@ type ProductDetailsRouteProp = RouteProp<{ ProductDetails: { productId: string }
 const ProductDetailsScreen = observer(() => {
   const route = useRoute<ProductDetailsRouteProp>()
   const navigation = useNavigation()
-  const { cartStore, authStore, productStore } = useStores()
-  const [product, setProduct] = useState<LoystarProduct | null>(null)
+  const { cartStore, productStore } = useStores()
+  const [product, setProduct] = useState<Product | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -42,21 +42,14 @@ const ProductDetailsScreen = observer(() => {
       return
     }
 
-    console.log('LoystarAPI object:', LoystarAPI);
-    console.log('fetchSingleProduct method:', LoystarAPI.fetchSingleProduct);
-
     try {
       setIsLoading(true)
       setError(null)
       
       console.log('Fetching product details for ID:', productId)
-      const productIdNumber = parseInt(productId, 10)
-      if (isNaN(productIdNumber)) {
-        throw new Error('Invalid product ID format')
-      }
-      const products = await LoystarAPI.fetchSingleProduct(productIdNumber)
-      if (products && products.length > 0) {
-        setProduct(products[0])
+      const fetched = await productStore.fetchProductById(productId)
+      if (fetched) {
+        setProduct(fetched)
       } else {
         setError('Product not found')
       }
@@ -71,31 +64,7 @@ const ProductDetailsScreen = observer(() => {
   const handleAddToCart = () => {
     if (!product) return
     
-    // Convert LoystarProduct to Product type for cart
-    const cartProduct = {
-      id: product.id.toString(),
-      name: product.name,
-      description: product.description || '',
-      price: parseFloat(product.price),
-      salePrice: product.original_price ? parseFloat(product.original_price) : undefined,
-      images: product.picture ? [product.picture] : [],
-      category: 'General',
-      tags: [],
-      stock: product.quantity ? parseInt(product.quantity) : 0,
-      rating: 0,
-      reviewCount: 0,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      isActive: !product.deleted,
-      specifications: {
-        'SKU': product.sku || 'N/A',
-        'Unit': product.unit || 'piece',
-        'Weight': product.weight || 'N/A',
-        'Tax Rate': product.tax_rate || '0%',
-      }
-    }
-    
-    cartStore.addItem(cartProduct, 1)
+    cartStore.addItem(product, 1)
     ToastService.success('Added to cart successfully!')
   }
 
@@ -138,9 +107,9 @@ const ProductDetailsScreen = observer(() => {
     )
   }
 
-  const currentPrice = parseFloat(product.price)
-  const originalPrice = parseFloat(product.original_price)
-  const hasDiscount = originalPrice && currentPrice < originalPrice
+  const hasDiscount = product.salePrice !== undefined && product.salePrice < product.price
+  const displayPrice = hasDiscount ? product.salePrice! : product.price
+  const originalPrice = hasDiscount ? product.price : undefined
 
   return (
     <View style={styles.container}>
@@ -157,7 +126,7 @@ const ProductDetailsScreen = observer(() => {
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           <Image 
-            source={{ uri: product.picture?.trim() || 'https://via.placeholder.com/300' }} 
+            source={{ uri: (product.images && product.images[0]) ? product.images[0] : 'https://via.placeholder.com/300' }} 
             style={styles.productImage} 
             resizeMode="cover"
           />
@@ -166,8 +135,8 @@ const ProductDetailsScreen = observer(() => {
             <Text style={styles.productName}>{product.name}</Text>
             
             <View style={styles.priceContainer}>
-              <Text style={styles.currentPrice}>₦{currentPrice.toFixed(2)}</Text>
-              {hasDiscount && (
+              <Text style={styles.currentPrice}>₦{displayPrice.toFixed(2)}</Text>
+              {hasDiscount && originalPrice !== undefined && (
                 <Text style={styles.originalPrice}>₦{originalPrice.toFixed(2)}</Text>
               )}
             </View>
@@ -181,34 +150,18 @@ const ProductDetailsScreen = observer(() => {
 
             <View style={styles.detailsContainer}>
               <Text style={styles.sectionTitle}>Product Details</Text>
-              
-              {product.sku && (
+              {typeof product.stock === 'number' && (
                 <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>SKU:</Text>
-                  <Text style={styles.detailValue}>{product.sku}</Text>
+                  <Text style={styles.detailLabel}>Stock:</Text>
+                  <Text style={styles.detailValue}>{product.stock}</Text>
                 </View>
               )}
-              
-              {product.unit && (
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Unit:</Text>
-                  <Text style={styles.detailValue}>{product.unit}</Text>
+              {product.specifications && Object.entries(product.specifications).map(([key, value]) => (
+                <View style={styles.detailRow} key={key}>
+                  <Text style={styles.detailLabel}>{key}:</Text>
+                  <Text style={styles.detailValue}>{String(value)}</Text>
                 </View>
-              )}
-              
-              {product.quantity && (
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Quantity:</Text>
-                  <Text style={styles.detailValue}>{product.quantity}</Text>
-                </View>
-              )}
-
-              {product.tax && (
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Tax:</Text>
-                  <Text style={styles.detailValue}>+{product.tax_rate}% {product.tax_type}</Text>
-                </View>
-              )}
+              ))}
             </View>
           </View>
         </ScrollView>

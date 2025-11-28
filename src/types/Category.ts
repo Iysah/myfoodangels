@@ -1,7 +1,7 @@
 export interface Category {
   id: string;
   name: string;
-  desc?: string;
+  desc: string;
   image: string;
   icon?: string;
   color?: string;
@@ -10,8 +10,8 @@ export interface Category {
   productCount?: number;
   createdAt: Date;
   updatedAt: Date;
-  slug?: string;
-  loystarId?: number;
+  slug: string;
+  loystarId: number;
 }
 
 export interface CategoryWithProducts extends Category {

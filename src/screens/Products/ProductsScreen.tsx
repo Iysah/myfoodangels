@@ -13,7 +13,8 @@ import {
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { observer } from 'mobx-react-lite';
-import { LoystarAPI, LoystarProduct } from '../../services/loystar/api';
+import { Product } from '../../types/Product';
+// Removed LoystarProduct usage; Wishlist uses Firebase Product directly
 import { RootStackParamList } from '../../navigation/types';
 import { useStores } from '../../contexts/StoreContext';
 import { ArrowLeft, Bell, Heart, ShoppingCart } from 'lucide-react-native';
@@ -35,7 +36,7 @@ const ProductsScreen: React.FC<ProductsScreenProps> = observer(() => {
   
   const { category } = route.params;
   
-  const [products, setProducts] = useState<LoystarProduct[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -47,33 +48,20 @@ const ProductsScreen: React.FC<ProductsScreenProps> = observer(() => {
     loadProducts();
   }, []);
 
-  const loadProducts = async (page: number = 1, append: boolean = false) => {
+  const loadProducts = async () => {
     try {
-      if (!append) {
-        setIsLoading(true);
-        setError(null);
+      setIsLoading(true);
+      setError(null);
+      let fetched: Product[] = [];
+      if (category.loystarId && category.loystarId > 0) {
+        fetched = await productStore.fetchProductsByLoystarCategory(category.loystarId);
+        console.log('Fetched products by loystar category:', fetched);
+        console.log('loystar category:', category.loystarId);
       } else {
-        setIsLoadingMore(true);
+        fetched = await productStore.fetchProducts({ category: category.name });
+        console.log('Fetched products:', fetched);
       }
-
-      // Note: The fetchProducts method uses specific hardcoded headers for the products endpoint
-      // The stored token from login is for checkout, not for product fetching
-      const response = await LoystarAPI.fetchProducts(category.loystarId, page, 10);
-      
-      // Handle the actual API response structure (array of products)
-      const products = Array.isArray(response) ? response : response.data || [];
-      
-      if (append) {
-        setProducts(prev => [...prev, ...products]);
-      } else {
-        setProducts(products);
-      }
-      
-      // Since the API doesn't return pagination meta, we'll handle it differently
-      // For now, assume we got all products if we received less than the page size
-      const hasMoreProducts = products.length === 10; // pageSize
-      setCurrentPage(page);
-      setTotalPages(hasMoreProducts ? page + 1 : page); // Simple pagination logic
+      setProducts(fetched);
     } catch (err: any) {
       console.error('Error loading products:', err);
       setError(err.message || 'Failed to load products');
@@ -84,11 +72,7 @@ const ProductsScreen: React.FC<ProductsScreenProps> = observer(() => {
     }
   };
 
-  const loadMoreProducts = () => {
-    if (!isLoadingMore && currentPage < totalPages) {
-      loadProducts(currentPage + 1, true);
-    }
-  };
+  const loadMoreProducts = () => {};
 
   const handleCartPress = () => {
     // Check if user is authenticated for cart access
@@ -104,45 +88,16 @@ const ProductsScreen: React.FC<ProductsScreenProps> = observer(() => {
     navigation.navigate('ProductDetails', { productId });
   };
 
-  const addToCart = (product: LoystarProduct) => {
-    // Check if product is in stock before adding to cart
-    if (!LoystarAPI.isProductInStock(product)) {
+  const addToCart = (product: Product) => {
+    if (!product.stock || product.stock <= 0) {
       ToastService.error('This item is currently out of stock');
       return;
     }
-
-    try {
-      // Convert LoystarProduct to our Product type
-      const cartProduct = {
-        id: product.id.toString(),
-        name: product.name,
-        description: product.description || '',
-        price: parseFloat(product.price),
-        salePrice: product.original_price ? parseFloat(product.original_price) : undefined,
-        images: [product.picture || 'https://via.placeholder.com/150'],
-        category: category.name,
-        subcategory: undefined,
-        tags: [],
-        stock: LoystarAPI.getStockQuantity(product),
-        rating: 0,
-        reviewCount: 0,
-        createdAt: new Date(product.created_at),
-        updatedAt: new Date(product.updated_at),
-        isActive: !product.deleted,
-        isFeatured: false,
-        brand: undefined,
-        weight: product.weight ? parseFloat(product.weight) : undefined,
-      };
-      
-      cartStore.addItem(cartProduct, 1);
-      ToastService.success(`${product.name} added to cart!`);
-    } catch (err: any) {
-      console.error('Error adding to cart:', err);
-      ToastService.error('Failed to add item to cart');
-    }
+    cartStore.addItem(product, 1);
+    ToastService.success(`${product.name} added to cart!`);
   };
 
-  const handleWishlistToggle = (item: LoystarProduct) => {
+  const handleWishlistToggle = (item: Product) => {
     // Check if user is authenticated for wishlist access
     if (authStore.requiresAuthentication()) {
       // Show authentication prompt with return navigation
@@ -150,32 +105,26 @@ const ProductsScreen: React.FC<ProductsScreenProps> = observer(() => {
       return;
     }
 
-    const isInWishlist = wishlistStore.isInWishlist(item.id.toString());
+    const isInWishlist = wishlistStore.isInWishlist(item.id);
     if (isInWishlist) {
-      wishlistStore.removeFromWishlist(item.id.toString());
+      wishlistStore.removeFromWishlist(item.id);
       ToastService.success(`${item.name} removed from wishlist`);
     } else {
-      wishlistStore.addToWishlist({
-        id: item.id.toString(),
-        name: item.name,
-        price: parseFloat(item.price),
-        image: item.picture || 'https://via.placeholder.com/150',
-        description: item.description || '',
-      });
+      wishlistStore.addToWishlist(item);
       ToastService.success(`${item.name} added to wishlist!`);
     }
   };
 
-  const renderProduct = ({ item }: { item: LoystarProduct }) => {
-    const isInStock = LoystarAPI.isProductInStock(item);
-    const stockStatus = LoystarAPI.getStockStatus(item);
-    const stockDisplayText = LoystarAPI.getStockDisplayText(item);
+  const renderProduct = ({ item }: { item: Product }) => {
+    const isInStock = item.stock > 0;
+    const stockStatus = isInStock ? (item.stock < 5 ? 'low_stock' : 'in_stock') : 'out_of_stock';
+    const stockDisplayText = isInStock ? (item.stock < 5 ? 'Only a few left' : 'In Stock') : 'Out of Stock';
 
     return (
-      <TouchableOpacity style={styles.productCard} onPress={() => handleProductPress(item.id.toString())}>
+      <TouchableOpacity style={styles.productCard} onPress={() => handleProductPress(item.id)}>
         <View style={styles.imageContainer}>
           <Image 
-            source={{ uri: item.picture || 'https://via.placeholder.com/150' }} 
+            source={{ uri: item.image || item.images?.[0] || 'https://via.placeholder.com/150' }} 
             style={[styles.productImage, !isInStock && styles.outOfStockImage]}
           />
           
@@ -197,22 +146,22 @@ const ProductsScreen: React.FC<ProductsScreenProps> = observer(() => {
           >
             <Heart 
               size={20} 
-              color={wishlistStore.isInWishlist(item.id.toString()) ? Colors.primary : '#ccc'}
-              fill={wishlistStore.isInWishlist(item.id.toString()) ? Colors.primary : 'transparent'}
+              color={wishlistStore.isInWishlist(item.id) ? Colors.primary : '#ccc'}
+              fill={wishlistStore.isInWishlist(item.id) ? Colors.primary : 'transparent'}
             />
           </TouchableOpacity>
         </View>
         <View style={styles.productInfo}>
           <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
-          {item.description && (
+          {(item.desc || item.description) && (
             <Text style={styles.productDescription} numberOfLines={2}>
-              {item.description}
+              {item.desc || item.description}
             </Text>
           )}
           <View style={styles.priceContainer}>
-            <Text style={styles.productPrice}>₦{parseFloat(item.price).toLocaleString()}</Text>
-            {item.original_price && parseFloat(item.original_price) > parseFloat(item.price) && (
-              <Text style={styles.originalPrice}>₦{parseFloat(item.original_price).toLocaleString()}</Text>
+            <Text style={styles.productPrice}>₦{(item.salePrice ?? item.price).toLocaleString()}</Text>
+            {item.salePrice && item.salePrice < item.price && (
+              <Text style={styles.originalPrice}>₦{item.price.toLocaleString()}</Text>
             )}
           </View>
           
