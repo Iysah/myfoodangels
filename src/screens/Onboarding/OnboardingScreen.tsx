@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { StyleSheet, View, FlatList, TouchableOpacity, Text, Dimensions, SafeAreaView } from 'react-native';
+import { StyleSheet, View, FlatList, TouchableOpacity, Text, Dimensions } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { AuthStackParamList, RootStackParamList } from '../../navigation/types';
@@ -8,6 +8,7 @@ import { observer } from 'mobx-react-lite';
 import OnboardingSlide from '../../components/OnboardingSlide';
 import { useStores } from '../../contexts/StoreContext';
 import { Colors } from '../../styles/globalStyles';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width, height } = Dimensions.get('window');
 
@@ -16,19 +17,19 @@ const slides = [
     id: '1',
     title: 'Farm to Table, Made Easy',
     description: 'Get the freshest produce straight from trusted local farmers.',
-    image: require('../../assets/onboarding/onboarding-a.png'),
+    image: require('@/assets/onboarding/onboarding-a.png'),
   },
   {
     id: '2',
     title: 'Freshness You Can Trust',
     description: 'Freshness guaranteed with every order.',
-    image: require('../../assets/onboarding/onboarding-b.png'), 
+    image: require('@/assets/onboarding/onboarding-b.png'), 
   },
   {
     id: '3',
     title: 'Your Farm Shop, Anytime, Anywhere',
     description: 'Shop with just a tap and get your produce delivered straight to your doorstep.',
-    image: require('../../assets/onboarding/onboarding-c.png'),
+    image: require('@/assets/onboarding/onboarding-c.png'),
   },
 ];
 

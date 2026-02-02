@@ -11,18 +11,18 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { observer } from 'mobx-react-lite';
 import { useNavigation } from '@react-navigation/native';
-import { Colors, GlobalStyles, Spacing, Typography } from '../../styles/globalStyles';
-import { useStores } from '../../contexts/StoreContext';
-import { Category } from '../../types';
+import { Colors, GlobalStyles, Spacing, Typography } from '@/styles/globalStyles';
+import { useStores } from '@/contexts/StoreContext';
+import { Category } from '@/types';
 import {Bell, Heart, ShoppingCart, Search } from 'lucide-react-native'
 import LogoIcon from '../../../assets/icons/logo';
 import { 
   AppConfig, 
   listenToAppConfig, 
   shouldShowFlashSales 
-} from '../../services/firebase/appConfig';
-import { listenToDocument } from '../../services/firebase/firestore';
-import ToastService from '../../utils/Toast';
+} from '@/services/firebase/appConfig';
+import { listenToDocument } from '@/services/firebase/firestore';
+import ToastService from '@/utils/Toast';
 
 const HomeScreen = observer(() => {
   const navigation = useNavigation();

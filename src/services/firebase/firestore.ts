@@ -41,8 +41,11 @@ export const setDocument = async <T extends DocumentData>(
   data: T
 ): Promise<void> => {
   try {
+    console.log(`FirestoreService: setDocument starting for ${collectionName}/${docId}...`);
     await setDoc(doc(firestore, collectionName, docId), data);
+    console.log(`FirestoreService: setDocument success for ${collectionName}/${docId}`);
   } catch (error) {
+    console.error(`FirestoreService: setDocument error for ${collectionName}/${docId}`, error);
     throw error;
   }
 };
@@ -111,7 +114,7 @@ export const listenToDocument = <T extends DocumentData>(
 ) => {
   const docRef = doc(firestore, collectionName, docId);
   return onSnapshot(
-    docRef, 
+    docRef,
     (docSnap) => {
       if (docSnap.exists()) {
         callback({ id: docSnap.id, ...docSnap.data() } as unknown as T);
@@ -145,11 +148,11 @@ export const createTimestamp = () => {
 };
 
 // Helper functions for common query constraints
-export const createWhereConstraint = (field: string, operator: "=="|"!="|"<"|"<="|">"|">="|"array-contains"|"array-contains-any"|"in"|"not-in", value: any) => {
+export const createWhereConstraint = (field: string, operator: "==" | "!=" | "<" | "<=" | ">" | ">=" | "array-contains" | "array-contains-any" | "in" | "not-in", value: any) => {
   return where(field, operator, value);
 };
 
-export const createOrderByConstraint = (field: string, direction: "asc"|"desc" = "asc") => {
+export const createOrderByConstraint = (field: string, direction: "asc" | "desc" = "asc") => {
   return orderBy(field, direction);
 };
 

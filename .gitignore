@@ -42,8 +42,8 @@ yarn-error.*
 ios/
 android/
 
-google-services.json
-GoogleService-Info.plist
+# google-services.json
+# GoogleService-Info.plist
 .easignore
 eas.json
 eas.json.example

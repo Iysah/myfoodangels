@@ -4,6 +4,7 @@ import * as AuthService from '../services/firebase/auth';
 import { auth } from '../services/firebase/config';
 import { User as FirebaseUser } from 'firebase/auth';
 import { updateDocument, setDocument, createTimestamp } from '../services/firebase/firestore';
+import { uploadProfileImage } from '../services/firebase/storage';
 
 class AuthStore {
   user: User | null = null;
@@ -54,8 +55,8 @@ class AuthStore {
   };
 
   registerWithEmail = async (
-    email: string, 
-    password: string, 
+    email: string,
+    password: string,
     additionalData?: {
       firstName?: string;
       lastName?: string;
@@ -71,15 +72,16 @@ class AuthStore {
   ) => {
     this.isLoading = true;
     this.error = null;
-    
+
     let firebaseUser: any = null;
-    
+
     try {
       // Register with Firebase
       firebaseUser = await AuthService.registerWithEmail(email, password);
+      return firebaseUser;
     } catch (error: any) {
       console.error('Registration error:', error);
-      
+
       // If Firebase registration failed, no need to rollback
       runInAction(() => {
         this.error = error.message;
@@ -87,7 +89,7 @@ class AuthStore {
         this.isFirebaseAuthenticated = false;
         this.user = null;
       });
-      
+
       throw error;
     }
   };
@@ -202,7 +204,7 @@ class AuthStore {
 
   updateProfile = async (displayName?: string, photoURL?: string) => {
     if (!this.user) return;
-    
+
     this.isLoading = true;
     this.error = null;
     try {
@@ -239,27 +241,40 @@ class AuthStore {
     if (!this.user) {
       throw new Error('No user found. Please log in again.');
     }
-    
+
     this.isLoading = true;
     this.error = null;
-    
+
     try {
+      console.log('AuthStore: Starting profile update...');
       const currentUser = AuthService.getCurrentUser();
       if (!currentUser) {
         throw new Error('No authenticated user found.');
       }
 
+      // Handle profile image upload if it's a local URI
+      let finalPhotoURL = profileData.photoURL || this.user.photoURL;
+      if (profileData.photoURL && (
+        profileData.photoURL.startsWith('file://') ||
+        profileData.photoURL.startsWith('content://') ||
+        !profileData.photoURL.startsWith('http')
+      )) {
+        console.log('AuthStore: Uploading profile image...', profileData.photoURL);
+        finalPhotoURL = await uploadProfileImage(this.user.id, profileData.photoURL);
+        console.log('AuthStore: Upload successful, new photoURL:', finalPhotoURL);
+      }
+
       // Update Firebase Auth profile (displayName and photoURL only)
-      if (profileData.displayName || profileData.photoURL) {
+      if (profileData.displayName || finalPhotoURL !== this.user.photoURL) {
         await AuthService.updateUserProfile(
-          currentUser, 
-          profileData.displayName, 
-          profileData.photoURL
+          currentUser,
+          profileData.displayName,
+          finalPhotoURL
         );
       }
 
-      // Prepare user data for Firestore
-      const userDataForFirestore = {
+      console.log('AuthStore: Preparing Firestore data...');
+      const userDataForFirestore = this.sanitizeData({
         id: this.user.id,
         email: this.user.email,
         displayName: profileData.displayName || this.user.displayName,
@@ -267,7 +282,7 @@ class AuthStore {
         lastName: profileData.lastName || this.user.lastName,
         phone: profileData.phone || this.user.phone,
         phoneNumber: this.user.phoneNumber, // Keep existing phoneNumber
-        photoURL: profileData.photoURL || this.user.photoURL,
+        photoURL: finalPhotoURL,
         addressDetails: profileData.addressDetails || this.user.addressDetails,
         createdAt: this.user.createdAt,
         updatedAt: createTimestamp(),
@@ -276,10 +291,12 @@ class AuthStore {
         favoriteProducts: this.user.favoriteProducts,
         recentlyWishListProducts: this.user.recentlyWishListProducts,
         notificationSettings: this.user.notificationSettings,
-      };
+      });
 
       // Save to Firestore users collection
+      console.log('AuthStore: Saving to Firestore...');
       await setDocument('users', this.user.id, userDataForFirestore);
+      console.log('AuthStore: Firestore save complete.');
 
       // Update local user state
       runInAction(() => {
@@ -288,7 +305,7 @@ class AuthStore {
           this.user.firstName = profileData.firstName || this.user.firstName;
           this.user.lastName = profileData.lastName || this.user.lastName;
           this.user.phone = profileData.phone || this.user.phone;
-          this.user.photoURL = profileData.photoURL || this.user.photoURL;
+          this.user.photoURL = finalPhotoURL;
           this.user.addressDetails = profileData.addressDetails || this.user.addressDetails;
           this.user.updatedAt = new Date();
         }
@@ -307,9 +324,9 @@ class AuthStore {
 
   // Register method (alias for registerWithEmail)
   register = async (
-    email: string, 
-    password: string, 
-    additionalData?: { 
+    email: string,
+    password: string,
+    additionalData?: {
       displayName?: string;
       firstName?: string;
       lastName?: string;
@@ -324,8 +341,14 @@ class AuthStore {
     }
   ) => {
     const user = await this.registerWithEmail(email, password, additionalData);
-    if (additionalData?.displayName && user) {
-      await this.updateProfile(additionalData.displayName);
+    if (user) {
+      // Use updateUserProfile to ensure data is saved to Firestore
+      await this.updateUserProfile({
+        displayName: additionalData?.displayName,
+        firstName: additionalData?.firstName,
+        lastName: additionalData?.lastName,
+        phone: additionalData?.phoneNumber, // Mapping phoneNumber to phone
+      });
     }
     return user;
   };
@@ -334,11 +357,11 @@ class AuthStore {
   checkAuthState = async () => {
     // This is handled by initializeAuthState, but we need this method for the RootNavigator
     return new Promise<void>((resolve) => {
-       const unsubscribe = auth.onAuthStateChanged(() => {
-         unsubscribe();
-         resolve();
-       });
-     });
+      const unsubscribe = auth.onAuthStateChanged(() => {
+        unsubscribe();
+        resolve();
+      });
+    });
   };
 
   // Send phone verification code
@@ -394,6 +417,42 @@ class AuthStore {
   // Prompt authentication for restricted features
   requiresAuthentication = () => {
     return !this.isFirebaseAuthenticated;
+  };
+
+  /**
+   * Helper to remove undefined values from an object before sending to Firestore
+   * Handles nested objects and skips recursion for special types like Timestamps
+   */
+  private sanitizeData = (data: any): any => {
+    if (data === null || data === undefined) return data;
+
+    // Skip recursion for Dates and Firestore Timestamps
+    if (data instanceof Date || (data.seconds !== undefined && data.nanoseconds !== undefined) || typeof data.toDate === 'function') {
+      return data;
+    }
+
+    if (Array.isArray(data)) {
+      return data.map(item => this.sanitizeData(item));
+    }
+
+    if (typeof data === 'object') {
+      const sanitized: any = {};
+      Object.keys(data).forEach((key) => {
+        const value = data[key];
+        // Don't include undefined, but include null (Firestore supports null)
+        if (value !== undefined) {
+          // Only recurse if it's a plain object (not Date, Timestamp, etc.)
+          if (typeof value === 'object' && value !== null && !(value instanceof Date) && !(value.seconds !== undefined && value.nanoseconds !== undefined) && typeof value.toDate !== 'function') {
+            sanitized[key] = this.sanitizeData(value);
+          } else {
+            sanitized[key] = value;
+          }
+        }
+      });
+      return sanitized;
+    }
+
+    return data;
   };
 }
 

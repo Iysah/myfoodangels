@@ -6,16 +6,16 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
-  SafeAreaView,
   Alert,
   ActivityIndicator,
   Image,
 } from 'react-native';
 import { observer } from 'mobx-react-lite';
-import { useStores } from '../../contexts/StoreContext';
+import { useStores } from '@/contexts/StoreContext';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { Colors } from '../../styles/globalStyles';
+import { Colors } from '@/styles/globalStyles';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const EditProfileScreen = observer(() => {
   const { authStore } = useStores();

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CLIENT_ID</key>
+	<string>361944308286-j2jigdcbcffm54n0ca85n520mn9mdr0k.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.361944308286-j2jigdcbcffm54n0ca85n520mn9mdr0k</string>
+	<key>API_KEY</key>
+	<string>AIzaSyCrYaddZrxLt99PeUD3vZT-qWkBHJyFXzU</string>
+	<key>GCM_SENDER_ID</key>
+	<string>361944308286</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.theproductdude.myfoodangels</string>
+	<key>PROJECT_ID</key>
+	<string>black-send</string>
+	<key>STORAGE_BUCKET</key>
+	<string>black-send.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:361944308286:ios:4d1391dfba7e27b8f5cf6f</string>
+</dict>
+</plist>
