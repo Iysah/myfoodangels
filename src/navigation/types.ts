@@ -47,6 +47,6 @@ export type RootStackParamList = {
 // Navigation Types
 declare global {
   namespace ReactNavigation {
-    interface RootParamList extends RootStackParamList {}
+    interface RootParamList extends RootStackParamList { }
   }
 }

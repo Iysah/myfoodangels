@@ -41,7 +41,7 @@ const SearchScreen = observer(() => {
         // Fallback to client-side filter on already loaded products
         const localResults = productStore.products.filter(product =>
           product.name.toLowerCase().includes(query.toLowerCase()) ||
-          product.description?.toLowerCase().includes(query.toLowerCase())
+          (product.desc || product.description || '').toLowerCase().includes(query.toLowerCase())
         );
         setSearchResults(localResults);
       } finally {
@@ -59,21 +59,53 @@ const SearchScreen = observer(() => {
   const renderProduct = ({ item }: { item: Product }) => {
     const productId = item.id;
     const productName = item.name;
-    const productPrice = item.salePrice || item.price;
-    const productImage = item.images?.[0];
+    const displayPrice = item.salePrice || item.price;
+    const hasDiscount = item.salePrice && item.salePrice < item.price;
+    const productImage = item.image || item.images?.[0];
+    const isOutOfStock = !item.inStock || (item.quantity !== undefined && item.quantity <= 0);
 
     return (
       <TouchableOpacity
         style={styles.productCard}
         onPress={() => handleProductPress(productId)}
+        activeOpacity={0.9}
       >
-        <Image 
-          source={{ uri: productImage || 'https://via.placeholder.com/150' }} 
-          style={styles.productImage} 
-        />
+        <View style={styles.imageContainer}>
+          <Image 
+            source={{ uri: productImage || 'https://via.placeholder.com/150' }} 
+            style={styles.productImage} 
+          />
+          {hasDiscount && (
+            <View style={styles.discountBadge}>
+              <Text style={styles.discountText}>Sale</Text>
+            </View>
+          )}
+          {isOutOfStock && (
+            <View style={styles.outOfStockOverlay}>
+              <Text style={styles.outOfStockText}>SOLD OUT</Text>
+            </View>
+          )}
+        </View>
+        
         <View style={styles.productInfo}>
-          <Text style={styles.productName} numberOfLines={2}>{productName}</Text>
-          <Text style={styles.productPrice}>₦{productPrice.toLocaleString()}</Text>
+          <View>
+            <Text style={styles.productName} numberOfLines={2}>{productName}</Text>
+            {item.category?.name && (
+              <Text style={styles.productCategory}>{item.category.name}</Text>
+            )}
+          </View>
+
+          <View style={styles.priceActionRow}>
+            <View style={styles.priceContainer}>
+              <Text style={styles.productPrice}>₦{displayPrice.toLocaleString()}</Text>
+              {hasDiscount && (
+                <Text style={styles.originalPrice}>₦{item.price.toLocaleString()}</Text>
+              )}
+            </View>
+            <View style={styles.addIconCircle}>
+              <Search size={14} color={Colors.white} />
+            </View>
+          </View>
         </View>
       </TouchableOpacity>
     );
@@ -147,109 +179,171 @@ const SearchScreen = observer(() => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#F8F9FA',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     backgroundColor: Colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
   },
   backButton: {
-    marginRight: Spacing.sm,
+    marginRight: 12,
   },
   searchContainer: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.background,
-    borderRadius: 8,
-    paddingHorizontal: Spacing.sm,
-    height: 40,
+    backgroundColor: '#F2F2F7',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 45,
   },
   searchIcon: {
-    marginRight: Spacing.xs,
+    marginRight: 8,
   },
   searchInput: {
     flex: 1,
-    fontSize: Typography.fontSize.base,
+    fontSize: 16,
     color: Colors.label,
     fontFamily: Typography.fontFamily.regular,
   },
   content: {
     flex: 1,
-    paddingHorizontal: Spacing.md,
   },
   resultsContainer: {
-    paddingTop: Spacing.md,
+    padding: 12,
+    paddingBottom: 40,
   },
   productCard: {
     flex: 1,
     backgroundColor: Colors.white,
-    borderRadius: 8,
-    margin: Spacing.xs,
-    padding: Spacing.sm,
-    borderColor: Colors.border,
+    borderRadius: 16,
+    margin: 6,
+    maxWidth: '47%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
     borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.03)',
+  },
+  imageContainer: {
+    position: 'relative',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    overflow: 'hidden',
   },
   productImage: {
     width: '100%',
-    height: 120,
+    height: 140,
+    backgroundColor: '#F8F8F8',
+  },
+  outOfStockOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  outOfStockText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FF3B30',
+  },
+  discountBadge: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    backgroundColor: '#FF3B30',
     borderRadius: 6,
-    marginBottom: Spacing.xs,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  discountText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
   },
   productInfo: {
+    padding: 12,
     flex: 1,
+    justifyContent: 'space-between',
   },
   productName: {
-    fontSize: Typography.fontSize.sm,
-    fontFamily: Typography.fontFamily.medium,
-    color: Colors.label,
-    marginBottom: Spacing.xs,
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 2,
+    lineHeight: 18,
+  },
+  productCategory: {
+    fontSize: 11,
+    color: '#8E8E93',
+    marginBottom: 6,
+  },
+  priceActionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    marginTop: 8,
+  },
+  priceContainer: {
+    flex: 1,
   },
   productPrice: {
-    fontSize: Typography.fontSize.sm,
-    fontFamily: Typography.fontFamily.bold,
+    fontSize: 16,
+    fontWeight: 'bold',
     color: Colors.primary,
   },
-  productSource: {
-    fontSize: Typography.fontSize.xs,
-    fontFamily: Typography.fontFamily.regular,
-    color: Colors.textSecondary,
-    marginTop: Spacing.xs,
-    fontStyle: 'italic',
+  originalPrice: {
+    fontSize: 11,
+    color: '#8E8E93',
+    textDecorationLine: 'line-through',
+  },
+  addIconCircle: {
+    backgroundColor: Colors.primary,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   errorContainer: {
-    backgroundColor: '#ffebee',
-    padding: Spacing.md,
-    borderRadius: 8,
-    marginVertical: Spacing.sm,
+    backgroundColor: '#FFF5F5',
+    padding: 16,
+    borderRadius: 12,
+    margin: 16,
+    borderWidth: 1,
+    borderColor: '#FFDADA',
   },
   errorText: {
-    fontSize: Typography.fontSize.sm,
+    fontSize: 14,
     fontFamily: Typography.fontFamily.regular,
-    color: '#c62828',
+    color: '#CC0000',
     textAlign: 'center',
   },
   loadingContainer: {
-    padding: Spacing.lg,
+    padding: 32,
     alignItems: 'center',
   },
   loadingText: {
-    fontSize: Typography.fontSize.base,
-    fontFamily: Typography.fontFamily.regular,
-    color: Colors.textSecondary,
+    fontSize: 14,
+    color: '#8E8E93',
   },
   emptyState: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingTop: 100,
   },
   emptyText: {
-    fontSize: Typography.fontSize.base,
-    fontFamily: Typography.fontFamily.regular,
-    color: Colors.textSecondary,
+    fontSize: 15,
+    color: '#8E8E93',
     textAlign: 'center',
   },
 });

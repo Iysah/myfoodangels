@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, TouchableOpacity, Alert, ScrollView, SafeAreaView } from 'react-native'
+import { StyleSheet, Text, View, TouchableOpacity, Alert, ScrollView } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
 import React, { useState, useEffect } from 'react'
 import { observer } from 'mobx-react-lite'
@@ -8,6 +8,7 @@ import { authStore, walletStore } from '../../stores'
 import ReferIcon from '../../../assets/icons/refer'
 import { getOrCreateReferral, withdrawReferralPoints, ReferralData } from '../../services/firebase'
 import { ArrowLeft } from 'lucide-react-native'
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const ReferScreen = observer(() => {
   const [referralData, setReferralData] = useState<ReferralData | null>(null)

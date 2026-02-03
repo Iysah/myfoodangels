@@ -21,7 +21,7 @@ import { ArrowLeft, Bell, Heart, ShoppingCart } from 'lucide-react-native';
 import { Colors, Spacing } from '../../styles/globalStyles';
 import ToastService from '../../utils/Toast';
 import AuthPrompt from '../../components/AuthPrompt';
-import {SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import Constants from 'expo-constants';
 
 type ProductsScreenRouteProp = RouteProp<RootStackParamList, 'Products'>;
@@ -86,7 +86,8 @@ const ProductsScreen: React.FC<ProductsScreenProps> = observer(() => {
   };
 
   const addToCart = (product: Product) => {
-    if (!product.stock || product.stock <= 0) {
+    const quantity = product.quantity ?? product.stock ?? 0;
+    if (quantity <= 0) {
       ToastService.error('This item is currently out of stock');
       return;
     }
@@ -113,79 +114,74 @@ const ProductsScreen: React.FC<ProductsScreenProps> = observer(() => {
   };
 
   const renderProduct = ({ item }: { item: Product }) => {
-    const isInStock = item.stock > 0;
-    const stockStatus = isInStock ? (item.stock < 5 ? 'low_stock' : 'in_stock') : 'out_of_stock';
-    const stockDisplayText = isInStock ? (item.stock < 5 ? 'Only a few left' : 'In Stock') : 'Out of Stock';
+    const isOutOfStock = !item.inStock || (item.quantity !== undefined && item.quantity <= 0);
+    const displayPrice = item.salePrice || item.price;
+    const hasDiscount = item.salePrice && item.salePrice < item.price;
+    const isInWishlist = wishlistStore.isInWishlist(item.id);
 
     return (
-      <TouchableOpacity style={styles.productCard} onPress={() => handleProductPress(item.id)}>
+      <TouchableOpacity 
+        style={styles.productCard} 
+        onPress={() => handleProductPress(item.id)}
+        activeOpacity={0.9}
+      >
         <View style={styles.imageContainer}>
           <Image 
             source={{ uri: item.image || item.images?.[0] || 'https://via.placeholder.com/150' }} 
-            style={[styles.productImage, !isInStock && styles.outOfStockImage]}
+            style={styles.productImage}
           />
-          
-          {/* Stock Status Badge */}
-          {stockStatus === 'out_of_stock' && (
-            <View style={styles.stockBadge}>
-              <Text style={styles.stockBadgeText}>Out of Stock</Text>
-            </View>
-          )}
-          {stockStatus === 'low_stock' && (
-            <View style={[styles.stockBadge, styles.lowStockBadge]}>
-              <Text style={styles.stockBadgeText}>Low Stock</Text>
-            </View>
-          )}
           
           <TouchableOpacity 
             style={styles.wishlistButton}
             onPress={() => handleWishlistToggle(item)}
+            activeOpacity={0.7}
           >
             <Heart 
-              size={20} 
-              color={wishlistStore.isInWishlist(item.id) ? Colors.primary : '#ccc'}
-              fill={wishlistStore.isInWishlist(item.id) ? Colors.primary : 'transparent'}
+              size={18} 
+              color={isInWishlist ? Colors.primary : '#8E8E93'}
+              fill={isInWishlist ? Colors.primary : 'transparent'}
             />
           </TouchableOpacity>
-        </View>
-        <View style={styles.productInfo}>
-          <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
-          {(item.desc || item.description) && (
-            <Text style={styles.productDescription} numberOfLines={2}>
-              {item.desc || item.description}
-            </Text>
+
+          {hasDiscount && (
+            <View style={styles.discountBadge}>
+              <Text style={styles.discountText}>Sale</Text>
+            </View>
           )}
-          <View style={styles.priceContainer}>
-            <Text style={styles.productPrice}>₦{(item.salePrice ?? item.price).toLocaleString()}</Text>
-            {item.salePrice && item.salePrice < item.price && (
-              <Text style={styles.originalPrice}>₦{item.price.toLocaleString()}</Text>
+
+          {isOutOfStock && (
+            <View style={styles.outOfStockOverlay}>
+              <Text style={styles.outOfStockText}>SOLD OUT</Text>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.productInfo}>
+          <View>
+            <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
+            {(item.desc || item.description) && (
+              <Text style={styles.productDescription} numberOfLines={1}>
+                {item.desc || item.description}
+              </Text>
             )}
           </View>
           
-          {/* Stock Status Text */}
-          <Text style={[
-            styles.stockText,
-            stockStatus === 'out_of_stock' && styles.outOfStockText,
-            stockStatus === 'low_stock' && styles.lowStockText
-          ]}>
-            {stockDisplayText}
-          </Text>
-          
-          <TouchableOpacity 
-            style={[
-              styles.addToCartButton,
-              !isInStock && styles.disabledButton
-            ]}
-            onPress={() => addToCart(item)}
-            disabled={!isInStock}
-          >
-            <Text style={[
-              styles.addToCartText,
-              !isInStock && styles.disabledButtonText
-            ]}>
-              {isInStock ? 'Add to Cart' : 'Out of Stock'}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.priceActionRow}>
+            <View style={styles.priceContainer}>
+              <Text style={styles.productPrice}>₦{displayPrice.toLocaleString()}</Text>
+              {hasDiscount && (
+                <Text style={styles.originalPrice}>₦{item.price.toLocaleString()}</Text>
+              )}
+            </View>
+            
+            <TouchableOpacity 
+              style={[styles.addIconCircle, isOutOfStock && styles.disabledAddButton]}
+              onPress={() => !isOutOfStock && addToCart(item)}
+              disabled={isOutOfStock}
+            >
+              <ShoppingCart size={14} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
       </TouchableOpacity>
     );
@@ -203,8 +199,8 @@ const ProductsScreen: React.FC<ProductsScreenProps> = observer(() => {
 
   if (isLoading) {
     return (
-      <View style={styles.container}>
-        <SafeAreaProvider style={{ backgroundColor: '#fff', position: 'relative', paddingTop: Constants.statusBarHeight }}>
+      <SafeAreaView style={[styles.container, {justifyContent:"center", alignItems:"center"}]}>
+        <View style={{ backgroundColor: '#fff', width:"100%", height:"100%" }}>
           <View style={styles.header}>
             <TouchableOpacity 
               style={styles.backButton}
@@ -220,8 +216,8 @@ const ProductsScreen: React.FC<ProductsScreenProps> = observer(() => {
             <ActivityIndicator size="large" color="#4CAF50" />
             <Text style={styles.loadingText}>Loading products...</Text>
           </View>
-        </SafeAreaProvider>
-      </View>
+        </View>
+      </SafeAreaView>
     );
   }
 
@@ -268,8 +264,8 @@ const ProductsScreen: React.FC<ProductsScreenProps> = observer(() => {
   }
 
   return (
-    <View style={styles.container}>
-      <SafeAreaProvider style={{ backgroundColor: '#fff', position: 'relative', paddingTop: Constants.statusBarHeight }}>
+    <SafeAreaView style={styles.container}>
+      <View style={{ backgroundColor: '#fff',  }}>
         <View style={styles.header}>
           <TouchableOpacity 
             style={styles.backButton}
@@ -315,7 +311,7 @@ const ProductsScreen: React.FC<ProductsScreenProps> = observer(() => {
             ListFooterComponent={renderFooter}
           />
         )}
-      </SafeAreaProvider>
+      </View>
       
       <AuthPrompt
         visible={showAuthPrompt}
@@ -325,14 +321,14 @@ const ProductsScreen: React.FC<ProductsScreenProps> = observer(() => {
           params: { category }
         }}
       />
-    </View>
+    </SafeAreaView>
   );
 });
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#F8F9FA',
   },
   header: {
     flexDirection: 'row',
@@ -341,14 +337,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
   },
   backButton: {
     marginRight: 16,
-  },
-  backButtonText: {
-    fontSize: 16,
-    color: '#4CAF50',
-    fontWeight: '500',
   },
   headerTitle: {
     fontSize: 18,
@@ -356,20 +349,14 @@ const styles = StyleSheet.create({
     color: '#333',
     flex: 1,
   },
-  placeholder: {
-    width: 40, // Same width as back button for centering
-  },
   rowContainer: {
     justifyContent: 'flex-end',
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 5
+    gap: 8
   },
   cartButton: {
-    padding: Spacing.sm,
-  },
-  cartIcon: {
-    color: '#000'
+    padding: 8,
   },
   cartIconContainer: {
     position: 'relative',
@@ -384,24 +371,24 @@ const styles = StyleSheet.create({
     height: 20,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
   },
   cartBadgeText: {
     color: '#fff',
     fontSize: 10,
-    fontWeight: '600',
-  },
-  content: {
-    flex: 1,
+    fontWeight: '700',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#fff',
   },
   loadingText: {
     marginTop: 16,
-    fontSize: 16,
-    color: '#666',
+    fontSize: 14,
+    color: '#8E8E93',
   },
   errorContainer: {
     flex: 1,
@@ -410,63 +397,102 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   errorText: {
-    fontSize: 16,
-    color: '#f44336',
+    fontSize: 14,
+    color: '#FF3B30',
     textAlign: 'center',
     marginBottom: 24,
   },
   retryButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: Colors.primary,
     paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 8,
+    borderRadius: 10,
   },
   retryButtonText: {
     color: '#fff',
-    fontSize: 16,
-    fontWeight: '500',
+    fontSize: 14,
+    fontWeight: '600',
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingVertical: 100,
   },
   emptyText: {
     fontSize: 16,
-    color: '#666',
+    color: '#8E8E93',
     textAlign: 'center',
   },
   productsList: {
-    padding: 8,
+    padding: 12,
+    paddingBottom: 100
   },
   productCard: {
     flex: 1,
     backgroundColor: '#fff',
-    borderRadius: 12,
+    borderRadius: 16,
     margin: 6,
-    maxWidth: '47%', // Ensures consistent width for 2-column grid
+    maxWidth: '47%',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
     elevation: 3,
-    overflow: 'hidden', // Ensures rounded corners work properly
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.03)',
   },
   imageContainer: {
     position: 'relative',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    overflow: 'hidden',
   },
   productImage: {
     width: '100%',
     height: 140,
-    resizeMode: 'cover',
+    backgroundColor: '#F8F8F8',
   },
   wishlistButton: {
     position: 'absolute',
-    top: 8,
-    right: 8,
+    top: 10,
+    right: 10,
     backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: 20,
-    padding: 6,
+    borderRadius: 15,
+    width: 30,
+    height: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  outOfStockOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  outOfStockText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FF3B30',
+  },
+  discountBadge: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    backgroundColor: '#FF3B30',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  discountText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
   },
   productInfo: {
     padding: 12,
@@ -477,45 +503,48 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 6,
+    marginBottom: 2,
     lineHeight: 18,
   },
   productDescription: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 10,
-    lineHeight: 16,
-    minHeight: 32, // Ensures consistent spacing even when description is short
+    fontSize: 11,
+    color: '#8E8E93',
+    marginBottom: 6,
+  },
+  priceActionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    marginTop: 8,
   },
   priceContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    flexWrap: 'wrap',
+    flex: 1,
   },
   productPrice: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: 'bold',
     color: Colors.primary,
   },
   originalPrice: {
     fontSize: 11,
-    color: '#999',
+    color: '#8E8E93',
     textDecorationLine: 'line-through',
-    marginLeft: 6,
   },
-  addToCartButton: {
+  addIconCircle: {
     backgroundColor: Colors.primary,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 'auto', // Push button to bottom of card
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
   },
-  addToCartText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '500',
+  disabledAddButton: {
+    backgroundColor: '#E5E5EA',
+    shadowOpacity: 0,
   },
   loadingMore: {
     flexDirection: 'row',
@@ -526,47 +555,11 @@ const styles = StyleSheet.create({
   loadingMoreText: {
     marginLeft: 8,
     fontSize: 14,
-    color: '#666',
+    color: '#8E8E93',
   },
-  // Inventory tracking styles
-  outOfStockImage: {
-    opacity: 0.5,
-  },
-  stockBadge: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    backgroundColor: '#f44336',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  lowStockBadge: {
-    backgroundColor: '#ff9800',
-  },
-  stockBadgeText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  stockText: {
-    fontSize: 11,
-    color: '#4CAF50',
-    marginBottom: 8,
-    fontWeight: '500',
-  },
-  outOfStockText: {
-    color: '#f44336',
-  },
-  lowStockText: {
-    color: '#ff9800',
-  },
-  disabledButton: {
-    backgroundColor: '#ccc',
-  },
-  disabledButtonText: {
-    color: '#999',
-  },
+  placeholder: {
+    width: 40,
+  }
 });
 
 export default ProductsScreen;

@@ -6,33 +6,28 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  SafeAreaView,
+  
 } from 'react-native';
 import { observer } from 'mobx-react-lite';
-import { useStores } from '../../contexts/StoreContext';
-import { FAQ } from '../../types';
+import { useStores } from '@/contexts/StoreContext';
+import { FAQ } from '@/types';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const FaqsScreen = observer(() => {
   const { faqStore } = useStores();
-  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
     faqStore.fetchFAQs();
   }, []);
 
   const toggleExpanded = (id: string) => {
-    const newExpanded = new Set(expandedItems);
-    if (newExpanded.has(id)) {
-      newExpanded.delete(id);
-    } else {
-      newExpanded.add(id);
-    }
-    setExpandedItems(newExpanded);
+    setExpandedId(expandedId === id ? null : id);
   };
 
   const renderFAQItem = (faq: FAQ) => {
-    const isExpanded = expandedItems.has(faq.id);
+    const isExpanded = expandedId === faq.id;
 
     return (
       <View key={faq.id} style={styles.faqItem}>

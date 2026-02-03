@@ -247,6 +247,7 @@ const WalletScreen = observer(() => {
             </TouchableOpacity> */}
           </View>
 
+
           {/* Payment Cards */}
           {walletStore.cards.length > 0 && (
             <View style={styles.section}>

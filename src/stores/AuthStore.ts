@@ -5,6 +5,9 @@ import { auth } from '../services/firebase/config';
 import { User as FirebaseUser } from 'firebase/auth';
 import { updateDocument, setDocument, createTimestamp } from '../services/firebase/firestore';
 import { uploadProfileImage } from '../services/firebase/storage';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const AUTH_SESSION_KEY = 'mfa_auth_session';
 
 class AuthStore {
   user: User | null = null;
@@ -26,25 +29,33 @@ class AuthStore {
 
   initializeAuthState = () => {
     this.isLoading = true;
-    // Listen for auth state changes
+
+    // 1. Optimistically load session from AsyncStorage
+    this.loadManualSession();
+
+    // 2. Listen for real auth state changes
     const unsubscribe = auth.onAuthStateChanged((firebaseUser: FirebaseUser | null) => {
       runInAction(() => {
         if (firebaseUser) {
-          this.user = {
+          const newUser = {
             id: firebaseUser.uid,
             email: firebaseUser.email || undefined,
             phoneNumber: firebaseUser.phoneNumber || undefined,
             displayName: firebaseUser.displayName || undefined,
-            // firstName: firebaseUser?.firstName || undefined,
-            // lastName: firebaseUser?.lastName || undefined,
             photoURL: firebaseUser.photoURL || undefined,
-            createdAt: new Date(),
+            createdAt: this.user?.createdAt || new Date(),
             updatedAt: new Date(),
           };
+          this.user = { ...this.user, ...newUser };
           this.isFirebaseAuthenticated = true;
+          this.saveManualSession(this.user);
         } else {
-          this.user = null;
-          this.isFirebaseAuthenticated = false;
+          // Only clear if we are not in guest mode
+          if (!this.isGuest) {
+            this.user = null;
+            this.isFirebaseAuthenticated = false;
+            this.clearManualSession();
+          }
         }
         this.isLoading = false;
         this.error = null;
@@ -52,6 +63,46 @@ class AuthStore {
     });
 
     return unsubscribe;
+  };
+
+  private loadManualSession = async () => {
+    try {
+      const sessionData = await AsyncStorage.getItem(AUTH_SESSION_KEY);
+      if (sessionData) {
+        const parsedUser = JSON.parse(sessionData);
+        runInAction(() => {
+          if (!this.isFirebaseAuthenticated) {
+            this.user = parsedUser;
+            // We set this to true optimistically so the UI shows the logged in state
+            this.isFirebaseAuthenticated = true;
+            console.log('AuthStore: Manual session restored optimistically');
+          }
+        });
+      }
+    } catch (error) {
+      console.error('AuthStore: Error loading manual session:', error);
+    }
+  };
+
+  private saveManualSession = async (user: User) => {
+    try {
+      // Store a sanitized version of the user
+      const userData = {
+        ...user,
+        // Ensure we don't store anything that can't be stringified safely if needed
+      };
+      await AsyncStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(userData));
+    } catch (error) {
+      console.error('AuthStore: Error saving manual session:', error);
+    }
+  };
+
+  private clearManualSession = async () => {
+    try {
+      await AsyncStorage.removeItem(AUTH_SESSION_KEY);
+    } catch (error) {
+      console.error('AuthStore: Error clearing manual session:', error);
+    }
   };
 
   registerWithEmail = async (
@@ -99,6 +150,13 @@ class AuthStore {
     this.error = null;
     try {
       const user = await AuthService.loginWithEmail(email, password);
+      // user is already handled by onAuthStateChanged, but we can be proactive
+      if (user) {
+        runInAction(() => {
+          this.isFirebaseAuthenticated = true;
+          this.isGuest = false;
+        });
+      }
     } catch (error: any) {
       console.error('Login failed:', error);
       runInAction(() => {
@@ -169,9 +227,11 @@ class AuthStore {
     this.error = null;
     try {
       await AuthService.logout();
+      await this.clearManualSession();
       runInAction(() => {
         this.user = null;
         this.isFirebaseAuthenticated = false;
+        this.isGuest = false;
         this.isLoading = false;
       });
     } catch (error: any) {
@@ -219,6 +279,9 @@ class AuthStore {
           }
           this.isLoading = false;
         });
+        if (this.user) {
+          await this.saveManualSession(this.user);
+        }
       }
     } catch (error: any) {
       runInAction(() => {
@@ -312,6 +375,10 @@ class AuthStore {
         this.isLoading = false;
       });
 
+      if (this.user) {
+        await this.saveManualSession(this.user);
+      }
+
       return true;
     } catch (error: any) {
       runInAction(() => {
@@ -398,6 +465,7 @@ class AuthStore {
       this.user = null;
       this.error = null;
     });
+    this.clearManualSession();
   };
 
   exitGuestMode = () => {

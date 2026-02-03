@@ -33,23 +33,11 @@ const HomeScreen = observer(() => {
   useEffect(() => {
     const loadData = async () => {
       try {
-        console.log('HomeScreen: Starting to load data...');
-        console.log('ProductStore loading states:', {
-          isLoading: productStore.isLoading,
-          categoriesLoading: productStore.categoriesLoading,
-          error: productStore.error
-        });
-        
         await Promise.all([
           productStore.fetchFeaturedProducts(),
           productStore.fetchCategories(),
           productStore.fetchProducts(),
         ]);
-        
-        console.log('HomeScreen: Data loaded successfully');
-        console.log('Featured products count:', productStore.featuredProducts.length);
-        console.log('Categories count:', productStore.categories.length);
-        console.log('Products count:', productStore.products.length);
       } catch (error) {
         console.error('Error loading home screen data:', error);
       }
@@ -61,7 +49,6 @@ const HomeScreen = observer(() => {
   // Listen to Firebase app configuration changes
   useEffect(() => {
     const unsubscribe = listenToAppConfig((config) => {
-      console.log('App config updated:', config);
       setAppConfig(config);
     });
 
@@ -103,18 +90,23 @@ const HomeScreen = observer(() => {
 
   const renderProduct = ({ item }: { item: any }) => {
     const isInWishlist = wishlistStore.isInWishlist(item.id);
-    
+    const isOutOfStock = !item.inStock || (item.quantity !== undefined && item.quantity <= 0);
+    const displayPrice = item.salePrice || item.price;
+    const hasDiscount = item.salePrice && item.salePrice < item.price;
+
     const handleAddToCart = (e: any) => {
       e.stopPropagation();
+      if (isOutOfStock) {
+        ToastService.error('Out of Stock', 'This item is currently unavailable.');
+        return;
+      }
       cartStore.addItem(item, 1);
       ToastService.success('Added to Cart', `${item.name} added to cart`);
     };
 
     const handleToggleWishlist = (e: any) => {
       e.stopPropagation();
-      // Toggle wishlist for Firebase Product using string IDs
       wishlistStore.toggleWishlistItem(item);
-      
       if (isInWishlist) {
         ToastService.info('Removed from Wishlist', `${item.name} removed from wishlist`);
       } else {
@@ -126,30 +118,63 @@ const HomeScreen = observer(() => {
       <TouchableOpacity
         style={styles.productCard}
         onPress={() => handleProductPress(item.id)}
+        activeOpacity={0.9}
       >
         <View style={styles.productImageContainer}>
-          <Image source={{ uri: item?.image || item?.images?.[0] || item?.picture }} style={styles.productImage} />
+          <Image 
+            source={{ uri: item?.image || item?.images?.[0] || item?.picture || 'https://via.placeholder.com/150' }} 
+            style={styles.productImage} 
+          />
+          
           <TouchableOpacity 
             style={styles.wishlistButton}
             onPress={handleToggleWishlist}
+            activeOpacity={0.7}
           >
             <Heart 
-              size={20} 
-              color={isInWishlist ? Colors.primary : Colors.textSecondary}
+              size={18} 
+              color={isInWishlist ? Colors.primary : '#8E8E93'}
               fill={isInWishlist ? Colors.primary : 'transparent'}
             />
           </TouchableOpacity>
+
+          {hasDiscount && (
+            <View style={styles.discountBadge}>
+              <Text style={styles.discountText}>Sale</Text>
+            </View>
+          )}
+
+          {isOutOfStock && (
+            <View style={styles.outOfStockOverlay}>
+              <Text style={styles.outOfStockText}>SOLD OUT</Text>
+            </View>
+          )}
         </View>
+
         <View style={styles.productInfo}>
-          <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
-          <Text style={styles.productPrice}>₦{item.price}</Text>
-          <TouchableOpacity 
-            style={styles.addToCartButton}
-            onPress={handleAddToCart}
-          >
-            <ShoppingCart size={16} color={Colors.white} />
-            <Text style={styles.addToCartText}>Add to Cart</Text>
-          </TouchableOpacity>
+          <View>
+            <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
+            {item.category?.name && (
+              <Text style={styles.productCategory}>{item.category.name}</Text>
+            )}
+          </View>
+          
+          <View style={styles.priceActionRow}>
+            <View style={styles.priceContainer}>
+              <Text style={styles.productPrice}>₦{displayPrice.toLocaleString()}</Text>
+              {hasDiscount && (
+                <Text style={styles.originalPrice}>₦{item.price.toLocaleString()}</Text>
+              )}
+            </View>
+            
+            <TouchableOpacity 
+              style={[styles.addIconCircle, isOutOfStock && styles.disabledAddButton]}
+              onPress={handleAddToCart}
+              disabled={isOutOfStock}
+            >
+              <ShoppingCart size={14} color={Colors.white} />
+            </TouchableOpacity>
+          </View>
         </View>
       </TouchableOpacity>
     );
@@ -306,7 +331,6 @@ const HomeScreen = observer(() => {
     appConfig,
     productStore?.categories,
     productStore?.products,
-    
   ]);
 
   return (
@@ -395,8 +419,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
-    // borderBottomWidth: 1,
-    // borderBottomColor: Colors.border,
   },
   headerTitle: {
     fontSize: Typography.fontSize.xl,
@@ -460,7 +482,8 @@ const styles = StyleSheet.create({
   guestBanner: {
     backgroundColor: Colors.primary + '20',
     padding: Spacing.md,
-    margin: Spacing.md,
+    marginHorizontal: Spacing.md,
+    marginVertical: Spacing.md,
     borderRadius: 8,
   },
   guestText: {
@@ -483,102 +506,133 @@ const styles = StyleSheet.create({
   },
   productList: {
     paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.sm,
   },
   gridList: {
     paddingHorizontal: Spacing.md,
+    paddingBottom: 40,
   },
   productCard: {
     flex: 1,
     backgroundColor: Colors.white,
-    borderRadius: 12,
-    marginHorizontal: Spacing.sm,
+    borderRadius: 16,
+    marginHorizontal: Spacing.xs,
     marginBottom: Spacing.md,
-    maxWidth: '46%',
+    maxWidth: '47%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: 'rgba(0,0,0,0.03)',
   },
   productImageContainer: {
     position: 'relative',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    overflow: 'hidden',
   },
   productImage: {
     width: '100%',
-    height: 130,
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
+    height: 140,
+    backgroundColor: '#F8F8F8',
   },
   wishlistButton: {
     position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: Colors.inputBackground,
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     borderRadius: 15,
     width: 30,
     height: 30,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  outOfStockOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  outOfStockText: {
+    fontSize: 10,
+    fontFamily: Typography.fontFamily.bold,
+    color: Colors.error,
+    fontWeight: '700',
   },
   discountBadge: {
     position: 'absolute',
-    top: 8,
-    left: 8,
-    backgroundColor: Colors.primary,
-    borderRadius: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    top: 10,
+    left: 10,
+    backgroundColor: '#FF3B30',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
   discountText: {
     color: Colors.white,
-    fontSize: Typography.fontSize.xs,
+    fontSize: 10,
     fontFamily: Typography.fontFamily.bold,
-    fontWeight: '600',
+    textTransform: 'uppercase',
   },
   productInfo: {
-    padding: Spacing.sm,
+    padding: 12,
+    flex: 1,
+    justifyContent: 'space-between',
   },
   productName: {
-    fontSize: Typography.fontSize.sm,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: 14,
+    fontFamily: Typography.fontFamily.bold,
     color: Colors.label,
-    marginBottom: 4,
+    marginBottom: 2,
+    lineHeight: 18,
+  },
+  productCategory: {
+    fontSize: 11,
+    fontFamily: Typography.fontFamily.regular,
+    color: Colors.textSecondary,
+    marginBottom: 6,
+  },
+  priceActionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    marginTop: 8,
+  },
+  priceContainer: {
+    flex: 1,
   },
   productPrice: {
-    fontSize: Typography.fontSize.sm,
+    fontSize: 16,
     fontFamily: Typography.fontFamily.bold,
     color: Colors.primary,
   },
-  priceContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
   originalPrice: {
-    fontSize: Typography.fontSize.xs,
+    fontSize: 11,
     fontFamily: Typography.fontFamily.regular,
     color: Colors.textSecondary,
     textDecorationLine: 'line-through',
   },
-  productCategory: {
-    fontSize: Typography.fontSize.xs,
-    fontFamily: Typography.fontFamily.regular,
-    color: Colors.textSecondary,
-    marginTop: 2,
-  },
-  addToCartButton: {
+  addIconCircle: {
     backgroundColor: Colors.primary,
-    borderRadius: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     justifyContent: 'center',
-    marginTop: 8,
-    gap: 4,
+    alignItems: 'center',
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
   },
-  addToCartText: {
-    color: Colors.white,
-    fontSize: Typography.fontSize.xs,
-    fontFamily: Typography.fontFamily.medium,
-    fontWeight: '500',
+  disabledAddButton: {
+    backgroundColor: Colors.border,
+    shadowOpacity: 0,
   },
   sectionHeader: {
     flexDirection: 'row',

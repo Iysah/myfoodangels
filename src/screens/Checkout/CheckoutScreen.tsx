@@ -12,9 +12,8 @@ import {
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Dropdown } from 'react-native-element-dropdown';
-import { observer } from 'mobx-react-lite';
-import { useNavigation } from '@react-navigation/native';
-import { usePaystack } from 'react-native-paystack-webview';
+import { observer } from 'mobx-react-lite'
+import { useNavigation } from '@react-navigation/native'
 import { Colors, GlobalStyles, Spacing, Typography } from '../../styles/globalStyles';
 import { CartItem } from '../../stores/CartStore';
 import { PaymentCard } from '../../types/Wallet';
@@ -25,14 +24,14 @@ import { couponService } from '../../services/firebase/couponService';
 import { useStores } from '../../contexts/StoreContext';
 import { Wallet, CreditCard, Landmark, Smartphone } from 'lucide-react-native';
 import Constants from 'expo-constants';
-import PaystackService from '../../services/paystack/PaystackService';
+import PaystackService from '../../services/paystack/PaystackService'
+import PaystackWebView from '../../components/payment/PaystackWebView'
 import { setDocument, addDocument, createTimestamp, getDocument, updateDocument } from '../../services/firebase/firestore';
 // Removed LoystarAPI; Firebase-only order processing
 
 const CheckoutScreen = observer(() => {
-  const navigation = useNavigation();
-  const { authStore, cartStore, orderStore, walletStore } = useStores();
-  const { popup } = usePaystack();
+  const navigation = useNavigation()
+  const { authStore, cartStore, orderStore, walletStore } = useStores()
   
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('wallet');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -66,8 +65,13 @@ const CheckoutScreen = observer(() => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedPaymentOption, setSelectedPaymentOption] = useState<string>('');
   
+  // Paystack State
+  const [paystackVisible, setPaystackVisible] = useState(false)
+  const [authorizationUrl, setAuthorizationUrl] = useState<string | null>(null)
+  const [activeReference, setActiveReference] = useState<string | null>(null)
+
   // Delivery Dropdown State
-  const [isFocus, setIsFocus] = useState(false);
+  const [isFocus, setIsFocus] = useState(false)
 
   useEffect(() => {
     // Redirect to auth if not authenticated
@@ -445,82 +449,44 @@ const CheckoutScreen = observer(() => {
     }
   };
 
-  // Helper function to process Paystack payments using react-native-paystack-webview
+  // Helper function to process Paystack payments using manual WebView flow
   const processPaystackPayment = async (paymentType: string, orderData: any, orderId: string) => {
     try {
-      const paystackService = PaystackService.getInstance();
-      const reference = paystackService.generateReference();
+      const paystackService = PaystackService.getInstance()
+      const reference = paystackService.generateReference()
       
-      // Use the popup.checkout method from react-native-paystack-webview
-      // Channels are configured in PaystackProvider in RootNavigator
-      popup.checkout({
-        email: authStore.user?.email || billingAddress.email,
-        amount: orderData.total, // Amount in Naira (not kobo for this package)
-        reference: reference,
-        metadata: {
-          custom_fields: [
-            {
-              display_name: 'Order ID',
-              variable_name: 'order_id',
-              value: orderId
-            },
-            {
-              display_name: 'Payment Type',
-              variable_name: 'payment_type',
-              value: paymentType
-            },
-            {
-              display_name: 'Customer Name',
-              variable_name: 'customer_name',
-              value: billingAddress.fullName
-            },
-            {
-              display_name: 'Phone Number',
-              variable_name: 'phone_number',
-              value: billingAddress.phoneNumber
-            }
-          ]
-        },
-        onSuccess: async (response: any) => {
-          console.log('Payment successful:', response);
-          try {
-            // Verify payment and create order
-            await createOrder(response.reference || reference);
-          } catch (error: any) {
-            console.error('Error creating order after payment:', error);
-            Alert.alert('Error', 'Payment was successful but order creation failed. Please contact support.');
-          }
-        },
-        onCancel: () => {
-          console.log('Payment cancelled by user');
-          setIsProcessing(false);
-          Alert.alert('Payment Cancelled', 'You cancelled the payment process.');
-        },
-        onError: (error: any) => {
-          console.error('Payment error:', error);
-          setIsProcessing(false);
-          Alert.alert('Payment Error', error.message || 'An error occurred during payment. Please try again.');
-        },
-        onLoad: (response: any) => {
-          console.log('Payment WebView loaded:', response);
+      const paymentData = paystackService.preparePaymentData(
+        authStore.user?.email || billingAddress.email,
+        orderData.total,
+        'NGN',
+        reference,
+        {
+          order_id: orderId,
+          payment_type: paymentType,
+          customer_name: billingAddress.fullName,
+          phone_number: billingAddress.phoneNumber
         }
-      });
+      )
 
-      // Return pending status - actual completion happens in callbacks
-      return {
-        success: false, // Will be updated in onSuccess callback
-        reference: reference,
-        pending: true,
-      };
+      const response = await paystackService.initializeTransaction(paymentData)
+
+      if (response.status && response.data?.authorization_url) {
+        setActiveReference(reference)
+        setAuthorizationUrl(response.data.authorization_url)
+        setPaystackVisible(true)
+        return { pending: true }
+      } else {
+        throw new Error(response.message || 'Failed to initialize payment')
+      }
     } catch (error: any) {
-      console.error('Paystack payment error:', error);
+      console.error('Paystack payment error:', error)
       return {
         success: false,
         reference: '',
         error: error.message,
-      };
+      }
     }
-  };
+  }
 
   // Handle WebView navigation for payment completion
 
@@ -924,6 +890,24 @@ const CheckoutScreen = observer(() => {
         </ScrollView>
 
         {renderPaymentModal()}
+
+        <PaystackWebView
+          visible={paystackVisible}
+          authorizationUrl={authorizationUrl}
+          onSuccess={(reference) => {
+            setPaystackVisible(false)
+            createOrder(reference || activeReference || '')
+          }}
+          onCancel={() => {
+            setPaystackVisible(false)
+            setIsProcessing(false)
+          }}
+          onError={(error) => {
+            setPaystackVisible(false)
+            setIsProcessing(false)
+            Alert.alert('Payment Error', error)
+          }}
+        />
 
 
 

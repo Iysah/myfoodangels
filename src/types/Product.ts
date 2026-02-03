@@ -37,28 +37,31 @@ export interface Product {
   // Actually, the user said "Create/Update the TypeScript interface".
   // I will implement the user's requested interface.
 
-  created_date: FirebaseFirestoreTypes.Timestamp; 
+  created_date: FirebaseFirestoreTypes.Timestamp;
+  createdDate?: string;
   slug: string;
   image: string; // User has `image`, existing has `images: string[]`.
-  
+
   price: number;
   costprice: number;
-  minimumPrice: number;
+  minimumPrice?: number;
+  loystarId?: number;
+  merchant_id?: number;
   nameYourPrice: boolean;
   inStock: boolean;
   quantity: number;
-  
+
   rating: number;
   ratingCount: number;
 
   category: ProductCategoryMap;
   units: ProductUnit[];
-  
+
   // Keeping some existing fields that might be useful or used elsewhere until fully refactored, 
   // but marking them optional if they conflict or are replaced.
   // `stock` in existing is likely `quantity` or `inStock`.
   stock: number; // Keeping for compatibility with existing code that uses .stock
-  
+
   // Existing fields that might still be needed:
   salePrice?: number;
   images?: string[]; // Keeping for compatibility

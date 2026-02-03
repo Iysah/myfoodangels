@@ -1,7 +1,9 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+// @ts-ignore
+import { getAuth, initializeAuth, getReactNativePersistence } from 'firebase/auth';
 import { initializeFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Validate required environment variables
 const requiredEnvVars = {
@@ -53,8 +55,44 @@ try {
   throw error;
 }
 
+
 // Initialize Firebase services
-export const auth = getAuth(app);
+export const auth = (() => {
+  // First, check if Auth is already initialized to avoid the "already-initialized" error
+  try {
+    const existingAuth = getAuth(app);
+    if (existingAuth) {
+      console.log('Firebase Auth: Using existing instance');
+      return existingAuth;
+    }
+  } catch (error) {
+    // Auth not yet initialized, proceed to initializeAuth
+  }
+
+  try {
+    const persistenceFn = getReactNativePersistence;
+    console.log('Firebase Auth: Persistence fn type:', typeof persistenceFn);
+
+    // @ts-ignore - getReactNativePersistence can be a false-positive TS error in Firebase v10+
+    const persistence = typeof persistenceFn === 'function' && AsyncStorage
+      ? persistenceFn(AsyncStorage)
+      : undefined;
+
+    const initializedAuth = initializeAuth(app, {
+      persistence: persistence
+    });
+    console.log('Firebase Auth initialized with persistence:', !!persistence);
+    return initializedAuth;
+  } catch (error: any) {
+    // Final fallback: if initialization still fails with "already-initialized", just get the existing instance
+    if (error && (error.code === 'auth/already-initialized' || error.message?.includes('already-initialized'))) {
+      return getAuth(app);
+    }
+    // Log other initialization errors but try to return a default auth instance to prevent app crash
+    console.error('Firebase Auth initialization error:', error);
+    return getAuth(app);
+  }
+})();
 export const firestore = initializeFirestore(app, {
   experimentalForceLongPolling: true,
 });

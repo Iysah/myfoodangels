@@ -6,12 +6,13 @@ import {
   FlatList,
   RefreshControl,
   ActivityIndicator,
-  SafeAreaView,
+
 } from 'react-native';
 import { Coupon } from '../../types/Coupon';
 import { couponService } from '../../services/firebase/couponService';
 import CouponCard from '../../components/CouponCard';
 import { Colors, Typography, Spacing, GlobalStyles } from '../../styles/globalStyles';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const CouponsScreen = () => {
   const [coupons, setCoupons] = useState<Coupon[]>([]);

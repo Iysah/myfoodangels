@@ -43,7 +43,8 @@
           "cameraPermission": "The app accesses your camera to let you take photos for chat."
         }
       ],
-      "expo-document-picker"
+      "expo-document-picker",
+      "@react-native-community/datetimepicker"
     ],
     "extra": {
       "router": {

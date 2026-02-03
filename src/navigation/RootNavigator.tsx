@@ -27,6 +27,7 @@ import CouponsScreen from '../screens/Profile/CouponsScreen';
 import { PaystackProvider } from "react-native-paystack-webview";
 import OrderConfirmationScreen from '../screens/Checkout/OrderConfirmationScreen';
 
+
 const Stack = createStackNavigator<RootStackParamList>();
 
 const RootNavigator = observer(() => {

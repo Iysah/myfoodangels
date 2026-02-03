@@ -15,6 +15,7 @@ import { useStores } from '../../contexts/StoreContext';
 import AuthPrompt from '../../components/AuthPrompt';
 import Constants from 'expo-constants';
 import { Bell, Heart, ShoppingCart } from 'lucide-react-native';
+import { Product } from '../../types';
 
 const WishListScreen = observer(() => {
   const navigation = useNavigation();
@@ -45,16 +46,16 @@ const WishListScreen = observer(() => {
     navigation.navigate('Cart');
   };
 
-  const renderProduct = ({ item }: { item: any }) => (
+  const renderProduct = ({ item }: { item: Product }) => (
     <TouchableOpacity
       style={styles.productCard}
       onPress={() => handleProductPress(item.id)}
     >
-      <Image source={{ uri: item.imageUrl }} style={styles.productImage} />
+      <Image source={{ uri: item.image || item.images?.[0] || 'https://via.placeholder.com/150' }} style={styles.productImage} />
       <View style={styles.productInfo}>
         <Text style={styles.productName}>{item.name}</Text>
-        <Text style={styles.productPrice}>${item.price}</Text>
-        <Text style={styles.WishListDate}>WishList {item.WishListAt}</Text>
+        <Text style={styles.productPrice}>₦{(item.salePrice || item.price).toLocaleString()}</Text>
+        <Text style={styles.WishListDate}>{item.category?.name || 'Product'}</Text>
       </View>
     </TouchableOpacity>
   );

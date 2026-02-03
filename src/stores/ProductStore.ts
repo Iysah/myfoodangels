@@ -13,7 +13,7 @@ class ProductStore {
   categoriesLoading: boolean = false;
   error: string | null = null;
   filters: FilterOptions = {};
-  
+
   // Removed Loystar-specific product collections and loading states
 
   constructor() {
@@ -29,23 +29,23 @@ class ProductStore {
       const constraints: any[] = [];
       let clientSort: 'price_asc' | 'price_desc' | 'rating' | 'newest' | undefined;
       const hasCategoryFilter = !!filters?.category;
-      
+
       if (filters?.category) {
         constraints.push(FirestoreService.createWhereConstraint('category.name', '==', filters.category));
       }
-      
+
       if (filters?.inStock) {
         constraints.push(FirestoreService.createWhereConstraint('stock', '>', 0));
       }
-      
+
       if (filters?.onSale) {
         constraints.push(FirestoreService.createWhereConstraint('salePrice', '!=', null));
       }
-      
+
       if (filters?.rating) {
         constraints.push(FirestoreService.createWhereConstraint('rating', '>=', filters.rating));
       }
-      
+
       // Add sorting
       if (filters?.sortBy) {
         // To avoid Firestore composite index requirement, perform client-side sort
@@ -64,7 +64,7 @@ class ProductStore {
               constraints.push(FirestoreService.createOrderByConstraint('rating', 'desc'));
               break;
             case 'newest':
-              constraints.push(FirestoreService.createOrderByConstraint('createdAt', 'desc'));
+              constraints.push(FirestoreService.createOrderByConstraint('created_date', 'desc'));
               break;
           }
         }
@@ -73,15 +73,15 @@ class ProductStore {
         if (hasCategoryFilter) {
           clientSort = 'newest';
         } else {
-          constraints.push(FirestoreService.createOrderByConstraint('createdAt', 'desc'));
+          constraints.push(FirestoreService.createOrderByConstraint('created_date', 'desc'));
         }
       }
-      
+
       // Limit results
       constraints.push(FirestoreService.createLimitConstraint(50));
-      
+
       const products = await FirestoreService.queryDocuments<Product>('newProducts', constraints);
-      
+
       // Apply price range filter client-side (Firestore doesn't support range queries on multiple fields)
       let filteredProducts = products;
       if (filters?.priceRange) {
@@ -123,13 +123,13 @@ class ProductStore {
             break;
         }
       }
-      
+
       runInAction(() => {
         this.products = filteredProducts;
         this.filters = filters || {};
         this.isLoading = false;
       });
-      
+
       return filteredProducts;
     } catch (error: any) {
       runInAction(() => {
@@ -149,14 +149,14 @@ class ProductStore {
       const constraints = [
         FirestoreService.createLimitConstraint(10),
       ];
-      
+
       const featuredProducts = await FirestoreService.queryDocuments<Product>('newProducts', constraints);
-      
+
       runInAction(() => {
         this.featuredProducts = featuredProducts;
         this.isLoading = false;
       });
-      
+
       return featuredProducts;
     } catch (error: any) {
       runInAction(() => {
@@ -221,14 +221,14 @@ class ProductStore {
       const constraints = [
         FirestoreService.createLimitConstraint(20)
       ];
-      
+
       const categories = await FirestoreService.queryDocuments<Category>('categories', constraints);
-      
+
       runInAction(() => {
         this.categories = categories;
         this.categoriesLoading = false;
       });
-      
+
       return categories;
     } catch (error: any) {
       runInAction(() => {
@@ -246,11 +246,11 @@ class ProductStore {
     this.error = null;
     try {
       const product = await FirestoreService.getDocument<Product>('newProducts', productId);
-      
+
       runInAction(() => {
         this.currentProduct = product;
         this.isLoading = false;
-        
+
         // Add to recently WishList if not already there
         if (product && !this.recentlyWishListProducts.some(p => p.id === product.id)) {
           this.recentlyWishListProducts = [
@@ -259,7 +259,7 @@ class ProductStore {
           ];
         }
       });
-      
+
       return product;
     } catch (error: any) {
       runInAction(() => {
@@ -281,9 +281,9 @@ class ProductStore {
         FirestoreService.createOrderByConstraint('name'),
         FirestoreService.createLimitConstraint(50)
       ];
-      
+
       const allProducts = await FirestoreService.queryDocuments<Product>('newProducts', constraints);
-      
+
       // Client-side filtering
       const searchResults = allProducts.filter(product => {
         const lowerQuery = query.toLowerCase();
@@ -293,12 +293,12 @@ class ProductStore {
           (product.tags || []).some(tag => tag.toLowerCase().includes(lowerQuery))
         );
       });
-      
+
       runInAction(() => {
         this.products = searchResults;
         this.isLoading = false;
       });
-      
+
       return searchResults;
     } catch (error: any) {
       runInAction(() => {
@@ -322,28 +322,28 @@ class ProductStore {
         likes: 0,
         dislikes: 0
       };
-      
+
       const reviewId = await FirestoreService.addDocument('reviews', newReview);
-      
+
       // Update product rating
       if (this.currentProduct) {
         // Fetch all reviews for this product
         const constraints = [
           FirestoreService.createWhereConstraint('productId', '==', review.productId),
         ];
-        
+
         const reviews = await FirestoreService.queryDocuments<Review>('reviews', constraints);
-        
+
         // Calculate new average rating
         const totalRating = reviews.reduce((sum, r) => sum + r.rating, 0);
         const newRating = reviews.length > 0 ? totalRating / reviews.length : 0;
-        
+
         // Update product
         await FirestoreService.updateDocument('newProducts', review.productId, {
           rating: newRating,
           ratingCount: reviews.length
         });
-        
+
         runInAction(() => {
           if (this.currentProduct) {
             this.currentProduct.rating = newRating;
@@ -351,11 +351,11 @@ class ProductStore {
           }
         });
       }
-      
+
       runInAction(() => {
         this.isLoading = false;
       });
-      
+
       return reviewId;
     } catch (error: any) {
       runInAction(() => {
@@ -377,13 +377,13 @@ class ProductStore {
         createdAt: new Date(),
         status: 'pending'
       };
-      
+
       const offerId = await FirestoreService.addDocument('offers', newOffer);
-      
+
       runInAction(() => {
         this.isLoading = false;
       });
-      
+
       return offerId;
     } catch (error: any) {
       runInAction(() => {

@@ -15,10 +15,10 @@ import {
   View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { BorderRadius, Colors, GlobalStyles, Spacing, Typography } from '../../styles/globalStyles';
-import { useStores } from '../../contexts/StoreContext';
-import ToastService from '../../utils/Toast';
-import { AuthStackParamList } from '../../navigation/types';
+import { BorderRadius, Colors, GlobalStyles, Spacing, Typography } from '@/styles/globalStyles';
+import { useStores } from '@/contexts/StoreContext';
+import ToastService from '@/utils/Toast';
+import { AuthStackParamList } from '@/navigation/types';
 import { Eye, EyeClosed } from 'lucide-react-native';
 
 type LoginScreenRouteProp = RouteProp<AuthStackParamList, 'Login'>;

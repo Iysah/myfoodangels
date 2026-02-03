@@ -13,7 +13,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { observer } from 'mobx-react-lite';
 import { RootStackParamList } from '../../navigation/types';
 import { useStores } from '../../contexts/StoreContext';
-import { ArrowLeft, Bell, Heart, ShoppingCart } from 'lucide-react-native';
+import { ArrowLeft, Bell, Heart, ShoppingCart, Trash2, Star, Tag } from 'lucide-react-native';
 import { Colors, Spacing, Typography } from '../../styles/globalStyles';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
@@ -62,40 +62,88 @@ const WishlistScreen: React.FC<WishlistScreenProps> = observer(() => {
     }
   };
 
-  const renderWishlistItem = ({ item }: { item: Product }) => (
-    <View style={styles.productCard}>
-      <Image 
-        source={{ uri: item.image || item.images?.[0] || 'https://via.placeholder.com/150' }} 
-        style={styles.productImage}
-      />
-      <View style={styles.productInfo}>
-        <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
-        {item.description && (
-          <Text style={styles.productDescription} numberOfLines={2}>
-            {item.description}
-          </Text>
-        )}
-        <Text style={styles.productPrice}>₦{(item.salePrice || item.price).toLocaleString()}</Text>
-        
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity 
-            style={styles.addToCartButton}
-            onPress={() => handleAddToCart(item)}
-          >
-            <ShoppingCart size={16} color="#fff" />
-            <Text style={styles.addToCartText}>Add to Cart</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.removeButton}
-            onPress={() => handleRemoveFromWishlist(item.id, item.name)}
-          >
-            <Heart size={16} color={Colors.primary} fill={Colors.primary} />
-          </TouchableOpacity>
+  const renderWishlistItem = ({ item }: { item: Product }) => {
+    const displayPrice = item.salePrice || item.price;
+    const hasDiscount = item.salePrice && item.salePrice < item.price;
+    const isOutOfStock = !item.inStock || (item.quantity !== undefined && item.quantity <= 0);
+
+    return (
+      <TouchableOpacity 
+        style={styles.productCard}
+        onPress={() => navigation.navigate('ProductDetails', { product: item })}
+        activeOpacity={0.7}
+      >
+        <View style={styles.imageContainer}>
+          <Image 
+            source={{ uri: item.image || item.images?.[0] || 'https://via.placeholder.com/150' }} 
+            style={styles.productImage}
+          />
+          {hasDiscount && (
+            <View style={styles.saleBadge}>
+              <Text style={styles.saleText}>SALE</Text>
+            </View>
+          )}
+          {isOutOfStock && (
+            <View style={styles.outOfStockOverlay}>
+              <Text style={styles.outOfStockText}>SOLD OUT</Text>
+            </View>
+          )}
         </View>
-      </View>
-    </View>
-  );
+
+        <View style={styles.productInfo}>
+          <View>
+            <View style={styles.nameRow}>
+              <Text style={styles.productName} numberOfLines={1}>{item.name}</Text>
+              <TouchableOpacity 
+                style={styles.removeIcon}
+                onPress={() => handleRemoveFromWishlist(item.id, item.name)}
+              >
+                <Trash2 size={18} color={Colors.error} />
+              </TouchableOpacity>
+            </View>
+            
+            {(item.desc || item.description) ? (
+              <Text style={styles.productDescription} numberOfLines={1}>
+                {item.desc || item.description}
+              </Text>
+            ) : null}
+            
+            <View style={styles.metaRow}>
+              {item.category?.name ? (
+                <View style={styles.categoryBadge}>
+                  <Tag size={10} color={Colors.textSecondary} />
+                  <Text style={styles.categoryText}>{item.category.name}</Text>
+                </View>
+              ) : null}
+              
+              <View style={styles.ratingBadge}>
+                <Star size={10} color="#FFB800" fill="#FFB800" />
+                <Text style={styles.ratingText}>{item.rating?.toFixed(1) || '0.0'}</Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.priceActionRow}>
+            <View style={styles.priceContainer}>
+              <Text style={styles.productPrice}>₦{displayPrice.toLocaleString()}</Text>
+              {hasDiscount && (
+                <Text style={styles.originalPrice}>₦{item.price.toLocaleString()}</Text>
+              )}
+            </View>
+            
+            <TouchableOpacity 
+              style={[styles.addToCartButton, isOutOfStock && styles.disabledCartButton]}
+              onPress={() => !isOutOfStock && handleAddToCart(item)}
+              disabled={isOutOfStock}
+            >
+              <ShoppingCart size={16} color="#fff" />
+              <Text style={styles.addToCartText}>Add</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   const renderEmptyWishlist = () => {
     if (authStore.requiresAuthentication()) {
@@ -240,74 +288,156 @@ const styles = StyleSheet.create({
   },
   productsList: {
     padding: 16,
+    paddingBottom: 40,
   },
   productCard: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderRadius: 12,
+    backgroundColor: Colors.white,
+    borderRadius: 16,
     marginBottom: 16,
+    padding: 10,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    overflow: 'hidden',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+    minHeight: 120,
   },
-  productImage: {
+  imageContainer: {
+    position: 'relative',
     width: 100,
     height: 100,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#f5f5f5',
+  },
+  productImage: {
+    width: '100%',
+    height: '100%',
     resizeMode: 'cover',
+  },
+  saleBadge: {
+    position: 'absolute',
+    top: 6,
+    left: 6,
+    backgroundColor: '#FF3B30',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  saleText: {
+    color: '#fff',
+    fontSize: 8,
+    fontFamily: Typography.fontFamily.bold,
+  },
+  outOfStockOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  outOfStockText: {
+    fontSize: 10,
+    fontFamily: Typography.fontFamily.bold,
+    color: Colors.error,
+    textAlign: 'center',
   },
   productInfo: {
     flex: 1,
-    padding: 12,
+    paddingLeft: 12,
     justifyContent: 'space-between',
+    paddingVertical: 2,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
   },
   productName: {
-    fontSize: Typography.fontSize.base,
-    fontFamily: Typography.fontFamily.medium,
+    fontSize: 15,
+    fontFamily: Typography.fontFamily.bold,
     color: Colors.label,
-    marginBottom: 4,
+    flex: 1,
+    marginRight: 8,
   },
   productDescription: {
-    fontSize: Typography.fontSize.sm,
+    fontSize: 12,
     fontFamily: Typography.fontFamily.regular,
-    color: Colors.label,
-    opacity: 0.7,
-    marginBottom: 8,
+    color: Colors.textSecondary,
+    marginTop: 2,
+    opacity: 0.8,
   },
-  productPrice: {
-    fontSize: Typography.fontSize.base,
-    fontFamily: Typography.fontFamily.bold,
-    color: Colors.primary,
-    marginBottom: 12,
+  removeIcon: {
+    padding: 2,
   },
-  buttonContainer: {
+  metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginTop: 4,
+    gap: 8,
+  },
+  categoryBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F2F2F7',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    gap: 4,
+  },
+  categoryText: {
+    fontSize: 10,
+    fontFamily: Typography.fontFamily.medium,
+    color: Colors.textSecondary,
+  },
+  ratingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  ratingText: {
+    fontSize: 10,
+    fontFamily: Typography.fontFamily.medium,
+    color: Colors.label,
+  },
+  priceActionRow: {
+    flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    marginTop: 8,
+  },
+  priceContainer: {
+    justifyContent: 'flex-end',
+  },
+  productPrice: {
+    fontSize: 16,
+    fontFamily: Typography.fontFamily.bold,
+    color: Colors.primary,
+  },
+  originalPrice: {
+    fontSize: 12,
+    fontFamily: Typography.fontFamily.regular,
+    color: Colors.textSecondary,
+    textDecorationLine: 'line-through',
+    marginTop: -2,
   },
   addToCartButton: {
     backgroundColor: Colors.primary,
+    paddingHorizontal: 16,
     paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
+    borderRadius: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
-    marginRight: 8,
-    justifyContent: 'center',
+    gap: 6,
+  },
+  disabledCartButton: {
+    backgroundColor: Colors.border,
+    opacity: 0.6,
   },
   addToCartText: {
     color: '#fff',
-    fontSize: Typography.fontSize.sm,
-    fontFamily: Typography.fontFamily.medium,
-    marginLeft: 4,
-  },
-  removeButton: {
-    backgroundColor: 'rgba(255, 0, 0, 0.1)',
-    padding: 8,
-    borderRadius: 8,
+    fontSize: 12,
+    fontFamily: Typography.fontFamily.bold,
   },
   emptyContainer: {
     flex: 1,

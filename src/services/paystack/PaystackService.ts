@@ -75,7 +75,7 @@ class PaystackService {
    * Convert amount to kobo (Paystack uses kobo as the smallest unit)
    */
   convertToKobo(amount: number): number {
-    return Math.round(amount / 100);
+    return Math.round(amount * 100);
   }
 
   /**
@@ -97,11 +97,13 @@ class PaystackService {
   ): PaystackPaymentData {
     return {
       email,
-      amount: amount,
+      amount: this.convertToKobo(amount),
       currency,
       reference: reference || this.generateReference(),
+      callback_url: 'https://standard.paystack.co/close',
       metadata: {
         ...metadata,
+        cancel_action: 'https://standard.paystack.co/close',
         custom_fields: [
           {
             display_name: 'Payment For',
@@ -265,7 +267,7 @@ class PaystackService {
    * Validate payment amount
    */
   validateAmount(amount: number): boolean {
-    return amount > 0 && amount >= 1; // Minimum 1 Naira
+    return amount > 0 && amount >= 100; // Minimum 100 Naira
   }
 
   /**
